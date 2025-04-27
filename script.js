@@ -305,7 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedTasks.clear();
             showNotification('Selected tasks deleted successfully!');
         } catch (error) {
-           questa
             console.error("Error deleting tasks:", error);
             showNotification('Error deleting tasks.');
         }
@@ -573,6 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment added: ${comment}`);
                 showNotification('Comment added successfully!');
+                renderTasks(); // Re-render to update comment section
             }
         } catch (error) {
             console.error("Error adding comment:", error);
@@ -708,6 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (task.status === 'Completed') taskElement.classList.add('completed');
             taskElement.setAttribute('draggable', 'true');
             taskElement.setAttribute('data-id', task.id);
+            taskElement.setAttribute('data-category', task.category); // Add category for styling
 
             const today = new Date();
             const dueDate = task.dueDate ? new Date(task.dueDate) : null;
@@ -716,10 +717,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Format key details
-            const formattedRoomNumber = `R# ${task.roomNumber}`;
-            const shortDetails = task.details ? (task.details.length > 30 ? task.details.substring(0, 27) + '...' : task.details) : 'No details';
+            const formattedRoomNumber = `Room #${task.roomNumber}`;
+            const detailsText = task.details || 'No details provided';
             const dueDateText = task.dueDate ? `Due: ${task.dueDate}` : '';
-            const assignedToText = task.assignedTo ? `To: ${task.assignedTo}` : '';
+            const assignedToText = task.assignedTo ? `Assigned: ${task.assignedTo}` : '';
             const categorySpecific = task.newReservationId ? `Resv: ${task.newReservationId}` : (task.checkOutTime ? `Out: ${task.checkOutTime}` : '');
 
             // Counts for comments, attachments, and tags
@@ -727,51 +728,73 @@ document.addEventListener('DOMContentLoaded', () => {
             const attachmentCount = task.attachments ? task.attachments.length : 0;
             const tagCount = task.tags ? task.tags.length : 0;
 
-            // Minimal HTML structure
+            // Render comments
+            let commentsHtml = '';
+            if (commentCount > 0) {
+                commentsHtml = `<div class="comments-container" data-id="${task.id}">`;
+                task.comments.forEach(comment => {
+                    commentsHtml += `
+                        <div class="comment-item">
+                            <div>${comment.text}</div>
+                            <div class="comment-timestamp">${new Date(comment.timestamp).toLocaleString()}</div>
+                        </div>
+                    `;
+                });
+                commentsHtml += `</div>`;
+            }
+
+            // Updated HTML structure
             taskElement.innerHTML = `
                 <div class="swipe-background">
                     <i class="fas fa-archive text-lg"></i>
                 </div>
                 <div class="task-card-content">
-                    <input type="checkbox" class="task-checkbox" data-id="${task.id}">
-                    <div class="task-main">
+                    <div class="flex items-center">
+                        <input type="checkbox" class="task-checkbox" data-id="${task.id}">
                         <span class="task-title ${task.status === 'Completed' ? 'line-through text-gray-500 dark:text-gray-400' : ''}">
-                            ${formattedRoomNumber} - ${shortDetails}
+                            ${formattedRoomNumber}
                         </span>
-                        <span class="task-meta">
+                    </div>
+                    <div class="task-main">
+                        <div class="task-details">${detailsText}</div>
+                        <div class="task-meta">
                             ${categorySpecific ? `<span>${categorySpecific}</span>` : ''}
                             ${dueDateText ? `<span>${dueDateText}</span>` : ''}
                             ${assignedToText ? `<span>${assignedToText}</span>` : ''}
-                        </span>
-                        <span class="task-info">
+                        </div>
+                        <div class="task-info">
                             <span class="status-${task.status.toLowerCase().replace(' ', '-')}" style="display: inline-block;">${task.status}</span>
-                            ${commentCount > 0 ? `<span class="info-count">💬 ${commentCount}</span>` : ''}
+                            ${commentCount > 0 ? `<span class="info-count comment-toggle" data-id="${task.id}">💬 ${commentCount}</span>` : ''}
                             ${attachmentCount > 0 ? `<span class="info-count">📎 ${attachmentCount}</span>` : ''}
                             ${tagCount > 0 ? `<span class="info-count">🏷️ ${tagCount}</span>` : ''}
-                        </span>
+                        </div>
+                        ${commentsHtml}
                     </div>
-                    <div class="task-actions">
-                        <button class="comment-btn" data-id="${task.id}" data-tooltip="Add Comment"><i class="fas fa-comment"></i></button>
-                        <button class="attach-btn" data-id="${task.id}" data-tooltip="Add Attachment"><i class="fas fa-paperclip"></i></button>
-                        <button class="history-btn" data-id="${task.id}" data-tooltip="View History"><i class="fas fa-history"></i></button>
-                        <button class="edit-btn" data-id="${task.id}" data-tooltip="Edit Task"><i class="fas fa-edit"></i></button>
-                        <button class="duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate Task"><i class="fas fa-copy"></i></button>
-                        <button class="archive-btn" data-id="${task.id}" data-tooltip="Archive Task"><i class="fas fa-archive"></i></button>
-                        <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete Task"><i class="fas fa-trash"></i></button>
+                    <div class="task-actions-container">
+                        <button class="expand-btn" data-id="${task.id}">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </button>
+                        <div class="task-actions">
+                            <button class="comment-btn" data-id="${task.id}" data-tooltip="Add Comment"><i class="fas fa-comment"></i></button>
+                            <button class="attach-btn" data-id="${task.id}" data-tooltip="Add Attachment"><i class="fas fa-paperclip"></i></button>
+                            <button class="history-btn" data-id="${task.id}" data-tooltip="View History"><i class="fas fa-history"></i></button>
+                            <button class="edit-btn" data-id="${task.id}" data-tooltip="Edit Task"><i class="fas fa-edit"></i></button>
+                            <button class="duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate Task"><i class="fas fa-copy"></i></button>
+                            <button class="archive-btn" data-id="${task.id}" data-tooltip="Archive Task"><i class="fas fa-archive"></i></button>
+                            <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete Task"><i class="fas fa-trash"></i></button>
+                        </div>
                     </div>
                 </div>
             `;
 
-            // Click to toggle completion
-            taskElement.addEventListener('click', (e) => {
-                if (!e.target.closest('button') && !e.target.classList.contains('task-checkbox')) {
-                    console.log(`Task card clicked for task ${task.id}`);
-                    toggleTaskStatus(task.id);
-                }
+            // Toggle completion only on checkbox change
+            const checkbox = taskElement.querySelector('.task-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                console.log(`Checkbox toggled for task ${task.id}`);
+                toggleTaskStatus(task.id);
             });
 
             // Checkbox for bulk actions
-            const checkbox = taskElement.querySelector('.task-checkbox');
             checkbox.addEventListener('change', (e) => {
                 const taskId = parseInt(e.target.getAttribute('data-id'));
                 if (e.target.checked) {
@@ -782,34 +805,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Selected tasks:", Array.from(selectedTasks));
             });
 
-            // Add event listeners for buttons
-            taskElement.querySelector('.comment-btn').addEventListener('click', () => {
-                console.log(`Comment button clicked for task ${task.id}`);
-                promptComment(task.id);
+            // Expand/Collapse Actions
+            const expandBtn = taskElement.querySelector('.expand-btn');
+            expandBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent card click from triggering
+                const actions = taskElement.querySelector('.task-actions');
+                actions.classList.toggle('active');
+                expandBtn.innerHTML = actions.classList.contains('active')
+                    ? '<i class="fas fa-times"></i>'
+                    : '<i class="fas fa-ellipsis-h"></i>';
             });
-            taskElement.querySelector('.attach-btn').addEventListener('click', () => {
-                console.log(`Attach button clicked for task ${task.id}`);
-                promptAttachment(task.id);
-            });
-            taskElement.querySelector('.history-btn').addEventListener('click', () => {
-                console.log(`History button clicked for task ${task.id}`);
-                showTaskHistory(task.id);
-            });
-            taskElement.querySelector('.edit-btn').addEventListener('click', () => {
-                console.log(`Edit button clicked for task ${task.id}`);
-                editTask(task.id);
-            });
-            taskElement.querySelector('.duplicate-btn').addEventListener('click', () => {
-                console.log(`Duplicate button clicked for task ${task.id}`);
-                duplicateTask(task.id);
-            });
-            taskElement.querySelector('.archive-btn').addEventListener('click', () => {
-                console.log(`Archive button clicked for task ${task.id}`);
-                archiveTask(task.id);
-            });
-            taskElement.querySelector('.delete-btn').addEventListener('click', () => {
-                console.log(`Delete button clicked for task ${task.id}`);
-                deleteTask(task.id);
+
+            // Toggle Comments
+            const commentToggle = taskElement.querySelector('.comment-toggle');
+            if (commentToggle) {
+                commentToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const commentsContainer = taskElement.querySelector('.comments-container');
+                    commentsContainer.classList.toggle('active');
+                });
+            }
+
+            // Add event listeners for action buttons, ensuring they don't trigger card click
+            const actionButtons = taskElement.querySelectorAll('.task-actions button');
+            actionButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent card click from triggering
+                    const taskId = parseInt(button.getAttribute('data-id'));
+                    if (button.classList.contains('comment-btn')) {
+                        console.log(`Comment button clicked for task ${taskId}`);
+                        promptComment(taskId);
+                    } else if (button.classList.contains('attach-btn')) {
+                        console.log(`Attach button clicked for task ${taskId}`);
+                        promptAttachment(taskId);
+                    } else if (button.classList.contains('history-btn')) {
+                        console.log(`History button clicked for task ${taskId}`);
+                        showTaskHistory(taskId);
+                    } else if (button.classList.contains('edit-btn')) {
+                        console.log(`Edit button clicked for task ${taskId}`);
+                        editTask(taskId);
+                    } else if (button.classList.contains('duplicate-btn')) {
+                        console.log(`Duplicate button clicked for task ${taskId}`);
+                        duplicateTask(taskId);
+                    } else if (button.classList.contains('archive-btn')) {
+                        console.log(`Archive button clicked for task ${taskId}`);
+                        archiveTask(taskId);
+                    } else if (button.classList.contains('delete-btn')) {
+                        console.log(`Delete button clicked for task ${taskId}`);
+                        deleteTask(taskId);
+                    }
+                });
             });
 
             // Drag and Drop
