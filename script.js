@@ -1,0 +1,1069 @@
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM fully loaded and parsed");
+
+    // Global variables
+    let editingTaskId = null;
+    let touchStartX = 0;
+    let touchEndX = 0;
+    let selectedTasks = new Set();
+
+    // DOM elements
+    const addTaskBtn = document.getElementById('addTaskBtn');
+    const quickAddBtn = document.getElementById('quickAddBtn');
+    const taskModal = document.getElementById('taskModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const clearTasksBtn = document.getElementById('clearTasksBtn');
+    const searchInput = document.getElementById('searchInput');
+    const sortTasks = document.getElementById('sortTasks');
+    const filterPriority = document.getElementById('filterPriority');
+    const tagFilter = document.getElementById('tagFilter');
+    const viewArchiveBtn = document.getElementById('viewArchiveBtn');
+    const archiveModal = document.getElementById('archiveModal');
+    const closeArchiveBtn = document.getElementById('closeArchiveBtn');
+    const historyModal = document.getElementById('historyModal');
+    const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+    const notification = document.getElementById('notification');
+    const taskCategory = document.getElementById('taskCategory');
+    const checkOutTimeField = document.getElementById('checkOutTimeField');
+    const newReservationIdField = document.getElementById('newReservationIdField');
+    const quickAddButtons = document.querySelectorAll('.quick-add-btn');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const bulkArchiveBtn = document.getElementById('bulkArchiveBtn');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const exportTasksBtn = document.getElementById('exportTasksBtn');
+    const importTasksBtn = document.getElementById('importTasksBtn');
+    const importFileInput = document.getElementById('importFileInput');
+
+    // Load dark mode preference
+    if (localStorage.getItem('darkMode') === 'enabled') {
+        document.body.classList.add('dark');
+    }
+
+    // Initial load of tasks
+    try {
+        loadTasks();
+        checkReminders();
+    } catch (error) {
+        console.error("Error loading tasks on page load:", error);
+        showNotification('Error loading tasks. Please try importing a backup.');
+    }
+
+    // Dark Mode Toggle
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark') ? 'enabled' : 'disabled');
+            darkModeToggle.innerHTML = document.body.classList.contains('dark')
+                ? '<i class="fas fa-sun mr-1 sm:mr-2"></i>Toggle Light Mode'
+                : '<i class="fas fa-moon mr-1 sm:mr-2"></i>Toggle Dark Mode';
+        });
+    }
+
+    // Export Tasks
+    if (exportTasksBtn) {
+        exportTasksBtn.addEventListener('click', () => {
+            exportData();
+            showNotification('Tasks exported successfully!');
+        });
+    }
+
+    // Import Tasks
+    if (importTasksBtn && importFileInput) {
+        importTasksBtn.addEventListener('click', () => {
+            importFileInput.click();
+        });
+        importFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.tasks) localStorage.setItem('tasks', JSON.stringify(data.tasks));
+                    if (data.archive) localStorage.setItem('archive', JSON.stringify(data.archive));
+                    if (data.history) localStorage.setItem('history', JSON.stringify(data.history));
+                    renderTasks();
+                    renderArchive();
+                    showNotification('Data imported successfully!');
+                } catch (error) {
+                    console.error("Error importing data:", error);
+                    showNotification('Error importing data. Please check the file format.');
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // Open Modal for Adding Task
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', () => {
+            console.log("Add Task button clicked");
+            openTaskModal('Add New Task', 'Add Task');
+        });
+    } else {
+        console.error("Add Task button not found");
+    }
+
+    if (quickAddBtn) {
+        quickAddBtn.addEventListener('click', () => {
+            console.log("Quick Add FAB clicked");
+            openTaskModal('Add New Task', 'Add Task');
+        });
+    } else {
+        console.error("Quick Add FAB not found");
+    }
+
+    // Quick Add Buttons in Each Column
+    quickAddButtons.forEach(button => {
+        if (button) {
+            button.addEventListener('click', () => {
+                const category = button.getAttribute('data-category');
+                console.log(`Quick Add button clicked for category: ${category}`);
+                openTaskModal('Quick Add Task', 'Add Task', category);
+            });
+        }
+    });
+
+    // Cancel Modal
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            console.log("Cancel button clicked");
+            taskModal.classList.add('hidden');
+            resetForm();
+        });
+    } else {
+        console.error("Cancel button not found");
+    }
+
+    // Clear All Tasks
+    if (clearTasksBtn) {
+        clearTasksBtn.addEventListener('click', () => {
+            console.log("Clear All button clicked");
+            if (confirm('Are you sure you want to clear all tasks? This will delete all tasks, archived tasks, and history.')) {
+                localStorage.removeItem('tasks');
+                localStorage.removeItem('archive');
+                localStorage.removeItem('history');
+                backupData(); // Backup before clearing
+                renderTasks();
+                showNotification('All tasks cleared!');
+            }
+        });
+    } else {
+        console.error("Clear Tasks button not found");
+    }
+
+    // Search Tasks
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            console.log("Search input changed:", query);
+            renderTasks(query);
+        });
+    } else {
+        console.error("Search input not found");
+    }
+
+    // Sort Tasks
+    if (sortTasks) {
+        sortTasks.addEventListener('change', () => {
+            console.log("Sort option changed:", sortTasks.value);
+            renderTasks(searchInput.value.toLowerCase());
+        });
+    } else {
+        console.error("Sort dropdown not found");
+    }
+
+    // Filter by Priority
+    if (filterPriority) {
+        filterPriority.addEventListener('change', () => {
+            console.log("Priority filter changed:", filterPriority.value);
+            renderTasks(searchInput.value.toLowerCase());
+        });
+    } else {
+        console.error("Priority filter dropdown not found");
+    }
+
+    // Filter by Tag
+    if (tagFilter) {
+        tagFilter.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            console.log("Tag filter changed:", tagFilter.value);
+            renderTasks(query);
+        });
+    } else {
+        console.error("Tag filter input not found");
+    }
+
+    // Bulk Archive
+    if (bulkArchiveBtn) {
+        bulkArchiveBtn.addEventListener('click', () => {
+            if (selectedTasks.size === 0) {
+                alert('Please select tasks to archive.');
+                return;
+            }
+            selectedTasks.forEach(taskId => archiveTask(taskId));
+            selectedTasks.clear();
+            renderTasks();
+            showNotification('Selected tasks archived successfully!');
+        });
+    }
+
+    // Bulk Delete
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', () => {
+            if (selectedTasks.size === 0) {
+                alert('Please select tasks to delete.');
+                return;
+            }
+            selectedTasks.forEach(taskId => deleteTask(taskId));
+            selectedTasks.clear();
+            renderTasks();
+            showNotification('Selected tasks deleted successfully!');
+        });
+    }
+
+    // View Archive
+    if (viewArchiveBtn) {
+        viewArchiveBtn.addEventListener('click', () => {
+            console.log("View Archive button clicked");
+            archiveModal.classList.remove('hidden');
+            renderArchive();
+        });
+    } else {
+        console.error("View Archive button not found");
+    }
+
+    if (closeArchiveBtn) {
+        closeArchiveBtn.addEventListener('click', () => {
+            console.log("Close Archive button clicked");
+            archiveModal.classList.add('hidden');
+        });
+    } else {
+        console.error("Close Archive button not found");
+    }
+
+    // Close History Modal
+    if (closeHistoryBtn) {
+        closeHistoryBtn.addEventListener('click', () => {
+            console.log("Close History button clicked");
+            historyModal.classList.add('hidden');
+        });
+    } else {
+        console.error("Close History button not found");
+    }
+
+    // Dynamically Show/Hide Fields Based on Category
+    if (taskCategory) {
+        taskCategory.addEventListener('change', () => {
+            const category = taskCategory.value;
+            console.log("Category changed:", category);
+            checkOutTimeField.classList.add('hidden');
+            newReservationIdField.classList.add('hidden');
+            if (category === 'checkout') {
+                checkOutTimeField.classList.remove('hidden');
+                document.getElementById('taskCheckOutTime').value = '13:00'; // Default to 1 PM
+            } else if (category === 'extensions') {
+                newReservationIdField.classList.remove('hidden');
+            }
+        });
+    } else {
+        console.error("Task Category dropdown not found");
+    }
+
+    // Submit Task Form
+    if (submitBtn) {
+        submitBtn.addEventListener('click', (e) => {
+            console.log("Submit button clicked");
+            e.preventDefault();
+            const roomNumber = document.getElementById('taskRoomNumber').value.trim();
+            if (!roomNumber) {
+                alert('Room Number is required!');
+                return;
+            }
+            const newReservationId = document.getElementById('taskNewReservationId').value;
+            const category = document.getElementById('taskCategory').value;
+            const checkOutTime = document.getElementById('taskCheckOutTime').value;
+            const details = document.getElementById('taskDetails').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const priority = document.getElementById('taskPriority').value;
+            const assignedTo = document.getElementById('taskAssignedTo').value;
+            const status = document.getElementById('taskStatus').value;
+            const tags = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+
+            const task = {
+                id: editingTaskId || Date.now(),
+                roomNumber,
+                newReservationId: category === 'extensions' ? newReservationId : '',
+                category,
+                checkOutTime: category === 'checkout' ? checkOutTime : '',
+                details,
+                dueDate,
+                priority,
+                assignedTo,
+                status,
+                tags,
+                createdAt: new Date().toISOString(),
+                comments: editingTaskId ? (getTask(editingTaskId)?.comments || []) : [],
+                history: editingTaskId ? (getTask(editingTaskId)?.history || []) : [],
+                attachments: editingTaskId ? (getTask(editingTaskId)?.attachments || []) : []
+            };
+
+            if (editingTaskId) {
+                updateTask(task);
+                logHistory(task.id, `Task updated by user`);
+                showNotification('Task updated successfully!');
+            } else {
+                saveTask(task);
+                logHistory(task.id, `Task created by user`);
+                showNotification('Task added successfully!');
+            }
+            backupData();
+            renderTasks();
+            taskModal.classList.add('hidden');
+            resetForm();
+        });
+    } else {
+        console.error("Submit button not found");
+    }
+
+    function openTaskModal(title, btnText, presetCategory = null) {
+        try {
+            console.log("Opening task modal with title:", title);
+            modalTitle.textContent = title;
+            submitBtn.textContent = btnText;
+            editingTaskId = null;
+            resetForm();
+            if (presetCategory) {
+                taskCategory.value = presetCategory;
+                taskCategory.dispatchEvent(new Event('change'));
+            }
+            taskModal.classList.remove('hidden');
+        } catch (error) {
+            console.error("Error opening task modal:", error);
+        }
+    }
+
+    function resetForm() {
+        try {
+            const inputs = document.querySelectorAll('#taskForm input, #taskForm textarea, #taskForm select');
+            inputs.forEach(input => {
+                if (input.type === 'text' || input.type === 'textarea' || input.type === 'time') {
+                    input.value = '';
+                } else if (input.type === 'select-one') {
+                    input.selectedIndex = 0;
+                }
+            });
+            // Set default due date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('taskDueDate').value = today;
+            checkOutTimeField.classList.add('hidden');
+            newReservationIdField.classList.add('hidden');
+        } catch (error) {
+            console.error("Error resetting form:", error);
+        }
+    }
+
+    function showNotification(message) {
+        try {
+            notification.textContent = message;
+            notification.classList.remove('hide');
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+                notification.classList.add('hide');
+            }, 3000);
+        } catch (error) {
+            console.error("Error showing notification:", error);
+        }
+    }
+
+    function saveTask(task) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks.push(task);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            backupData();
+        } catch (error) {
+            console.error("Error saving task:", error);
+            showNotification('Error saving task.');
+        }
+    }
+
+    function updateTask(updatedTask) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks = tasks.map(task => task.id === updatedTask.id ? updatedTask : task);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            backupData();
+        } catch (error) {
+            console.error("Error updating task:", error);
+            showNotification('Error updating task.');
+        }
+    }
+
+    function getTask(taskId) {
+        try {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            return tasks.find(task => task.id === taskId);
+        } catch (error) {
+            console.error("Error getting task:", error);
+            return null;
+        }
+    }
+
+    function archiveTask(taskId) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            let archive = JSON.parse(localStorage.getItem('archive')) || [];
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                archive.push({ ...task, archivedAt: new Date().toISOString() });
+                tasks = tasks.filter(t => t.id !== taskId);
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                localStorage.setItem('archive', JSON.stringify(archive));
+                logHistory(taskId, `Task archived`);
+                backupData();
+                renderTasks();
+                showNotification('Task archived successfully!');
+            }
+        } catch (error) {
+            console.error("Error archiving task:", error);
+            showNotification('Error archiving task.');
+        }
+    }
+
+    function unarchiveTask(taskId) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            let archive = JSON.parse(localStorage.getItem('archive')) || [];
+            const task = archive.find(t => t.id === taskId);
+            if (task) {
+                tasks.push({ ...task, archivedAt: null });
+                archive = archive.filter(t => t.id !== taskId);
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                localStorage.setItem('archive', JSON.stringify(archive));
+                logHistory(taskId, `Task unarchived`);
+                backupData();
+                renderTasks();
+                renderArchive();
+                showNotification('Task unarchived successfully!');
+            }
+        } catch (error) {
+            console.error("Error unarchiving task:", error);
+            showNotification('Error unarchiving task.');
+        }
+    }
+
+    function deleteTask(taskId) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks = tasks.filter(task => task.id !== taskId);
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            logHistory(taskId, `Task deleted`);
+            backupData();
+            renderTasks();
+            showNotification('Task deleted successfully!');
+        } catch (error) {
+            console.error("Error deleting task:", error);
+            showNotification('Error deleting task.');
+        }
+    }
+
+    function duplicateTask(taskId) {
+        try {
+            const task = getTask(taskId);
+            if (task) {
+                const newTask = { ...task, id: Date.now(), createdAt: new Date().toISOString() };
+                saveTask(newTask);
+                logHistory(newTask.id, `Task duplicated from ${taskId}`);
+                backupData();
+                renderTasks();
+                showNotification('Task duplicated successfully!');
+            }
+        } catch (error) {
+            console.error("Error duplicating task:", error);
+            showNotification('Error duplicating task.');
+        }
+    }
+
+    function logHistory(taskId, action) {
+        try {
+            let history = JSON.parse(localStorage.getItem('history')) || [];
+            history.push({
+                taskId,
+                action,
+                timestamp: new Date().toISOString()
+            });
+            localStorage.setItem('history', JSON.stringify(history));
+            backupData();
+        } catch (error) {
+            console.error("Error logging history:", error);
+            showNotification('Error logging history.');
+        }
+    }
+
+    function addComment(taskId, comment) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    task.comments.push({
+                        text: comment,
+                        timestamp: new Date().toISOString()
+                    });
+                    logHistory(taskId, `Comment added: ${comment}`);
+                }
+                return task;
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            backupData();
+            renderTasks();
+        } catch (error) {
+            console.error("Error adding comment:", error);
+            showNotification('Error adding comment.');
+        }
+    }
+
+    function addAttachment(taskId, attachment) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    task.attachments.push({
+                        text: attachment,
+                        timestamp: new Date().toISOString()
+                    });
+                    logHistory(taskId, `Attachment added: ${attachment}`);
+                }
+                return task;
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            backupData();
+            renderTasks();
+        } catch (error) {
+            console.error("Error adding attachment:", error);
+            showNotification('Error adding attachment.');
+        }
+    }
+
+    function toggleTaskStatus(taskId) {
+        try {
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks = tasks.map(task => {
+                if (task.id === taskId) {
+                    task.status = task.status === 'Completed' ? 'Pending' : 'Completed';
+                    logHistory(taskId, `Task status changed to ${task.status}`);
+                }
+                return task;
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            backupData();
+            renderTasks();
+            showNotification(`Task marked as ${tasks.find(t => t.id === taskId).status}!`);
+        } catch (error) {
+            console.error("Error toggling task status:", error);
+            showNotification('Error toggling task status.');
+        }
+    }
+
+    function checkReminders() {
+        try {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const today = new Date().toISOString().split('T')[0];
+            const dueToday = tasks.filter(task => task.dueDate === today && task.status !== 'Completed');
+            if (dueToday.length > 0) {
+                showNotification(`Reminder: You have ${dueToday.length} task(s) due today!`);
+            }
+        } catch (error) {
+            console.error("Error checking reminders:", error);
+        }
+    }
+
+    function exportData() {
+        try {
+            const data = {
+                tasks: JSON.parse(localStorage.getItem('tasks')) || [],
+                archive: JSON.parse(localStorage.getItem('archive')) || [],
+                history: JSON.parse(localStorage.getItem('history')) || []
+            };
+            const dataStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error exporting data:", error);
+            showNotification('Error exporting data.');
+        }
+    }
+
+    function backupData() {
+    // This now just does a silent backup to localStorage without downloading
+    try {
+        const backup = {
+            timestamp: new Date().toISOString(),
+            tasks: JSON.parse(localStorage.getItem('tasks')) || [],
+            archive: JSON.parse(localStorage.getItem('archive')) || [],
+            history: JSON.parse(localStorage.getItem('history')) || []
+        };
+        localStorage.setItem('lastBackup', JSON.stringify(backup));
+        console.log("Data backed up silently");
+    } catch (error) {
+        console.error("Error backing up data:", error);
+    }
+}
+
+// Keep the export function but only call it when explicitly requested
+function exportData() {
+    try {
+        const data = {
+            tasks: JSON.parse(localStorage.getItem('tasks')) || [],
+            archive: JSON.parse(localStorage.getItem('archive')) || [],
+            history: JSON.parse(localStorage.getItem('history')) || []
+        };
+        const dataStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error("Error exporting data:", error);
+        showNotification('Error exporting data.');
+    }
+}
+
+    function renderTasks(query = '') {
+        try {
+            const sortOption = sortTasks.value;
+            const priorityFilter = filterPriority.value;
+            const tagQuery = tagFilter.value.toLowerCase();
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+            // Filter by search query
+            if (query) {
+                tasks = tasks.filter(task =>
+                    task.roomNumber.toLowerCase().includes(query) ||
+                    task.newReservationId.toLowerCase().includes(query) ||
+                    task.details.toLowerCase().includes(query) ||
+                    task.assignedTo.toLowerCase().includes(query)
+                );
+            }
+
+            // Filter by priority
+            if (priorityFilter !== 'all') {
+                tasks = tasks.filter(task => task.priority === priorityFilter);
+            }
+
+            // Filter by tag
+            if (tagQuery) {
+                tasks = tasks.filter(task =>
+                    task.tags && task.tags.some(tag => tag.toLowerCase().includes(tagQuery))
+                );
+            }
+
+            // Sort tasks
+            if (sortOption === 'priority') {
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                tasks.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+            } else if (sortOption === 'dueDate') {
+                tasks.sort((a, b) => {
+                    const dateA = a.dueDate ? new Date(a.dueDate) : new Date('9999-12-31');
+                    const dateB = b.dueDate ? new Date(b.dueDate) : new Date('9999-12-31');
+                    return dateA - dateB;
+                });
+            }
+
+            // Clear columns
+            const columns = {
+                checkout: document.getElementById('checkout'),
+                extensions: document.getElementById('extensions'),
+                handover: document.getElementById('handover'),
+                guestrequests: document.getElementById('guestrequests')
+            };
+            Object.values(columns).forEach(column => (column.innerHTML = ''));
+
+            // Reset counters
+            const counters = {
+                checkout: 0,
+                extensions: 0,
+                handover: 0,
+                guestrequests: 0
+            };
+
+            // Render tasks and count them
+            tasks.forEach(task => {
+                counters[task.category]++;
+                renderTask(task);
+            });
+
+            // Update counters
+            document.getElementById('checkoutCounter').textContent = `Tasks: ${counters.checkout}`;
+            document.getElementById('extensionsCounter').textContent = `Tasks: ${counters.extensions}`;
+            document.getElementById('handoverCounter').textContent = `Tasks: ${counters.handover}`;
+            document.getElementById('guestrequestsCounter').textContent = `Tasks: ${counters.guestrequests}`;
+        } catch (error) {
+            console.error("Error rendering tasks:", error);
+            showNotification('Error rendering tasks.');
+        }
+    }
+
+    function renderTask(task) {
+        try {
+            const taskElement = document.createElement('div');
+            taskElement.classList.add('task-card', `priority-${task.priority}`, 'swipe-container');
+            if (task.status === 'Completed') taskElement.classList.add('completed');
+            taskElement.setAttribute('draggable', 'true');
+            taskElement.setAttribute('data-id', task.id);
+
+            const today = new Date();
+            const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+            if (dueDate && dueDate < today && task.status !== 'Completed') {
+                taskElement.classList.add('overdue');
+            }
+
+            // Format room number as "R# 502"
+            const formattedRoomNumber = `R# ${task.roomNumber}`;
+
+            // Render comments
+            let commentsHtml = '';
+            if (task.comments.length > 0) {
+                commentsHtml = '<div class="mt-2">';
+                task.comments.forEach(comment => {
+                    commentsHtml += `
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-semibold">[${new Date(comment.timestamp).toLocaleString()}]</span>
+                            ${comment.text}
+                        </p>`;
+                });
+                commentsHtml += '</div>';
+            }
+
+            // Render attachments
+            let attachmentsHtml = '';
+            if (task.attachments.length > 0) {
+                attachmentsHtml = '<div class="mt-2">';
+                task.attachments.forEach(attachment => {
+                    attachmentsHtml += `
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <span class="font-semibold">[${new Date(attachment.timestamp).toLocaleString()}]</span>
+                            ${attachment.text}
+                        </p>`;
+                });
+                attachmentsHtml += '</div>';
+            }
+
+            // Render tags
+            let tagsHtml = '';
+            if (task.tags && task.tags.length > 0) {
+                tagsHtml = '<div class="mt-1">';
+                task.tags.forEach(tag => {
+                    tagsHtml += `<span class="tag">${tag}</span>`;
+                });
+                tagsHtml += '</div>';
+            }
+
+            taskElement.innerHTML = `
+                <div class="swipe-background">
+                    <i class="fas fa-archive text-2xl"></i>
+                </div>
+                <div class="task-card-content">
+                    <input type="checkbox" class="task-checkbox mt-1" data-id="${task.id}">
+                    <div class="task-details">
+                        <h3 class="font-semibold text-lg ${task.status === 'Completed' ? 'line-through text-gray-500 dark:text-gray-400' : ''}">${formattedRoomNumber}</h3>
+                        ${task.newReservationId ? `<p class="text-sm text-gray-600 dark:text-gray-400">New Resv: ${task.newReservationId}</p>` : ''}
+                        ${task.checkOutTime ? `<p class="text-sm text-gray-600 dark:text-gray-400">Check-Out: ${task.checkOutTime}</p>` : ''}
+                        <p class="text-sm ${task.status === 'Completed' ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-400'}">${task.details || 'No details'}</p>
+                        ${task.dueDate ? `<p class="text-xs text-gray-500 dark:text-gray-400">Due: ${task.dueDate}</p>` : ''}
+                        <p class="text-xs text-gray-400 dark:text-gray-500">Created: ${new Date(task.createdAt).toLocaleDateString()}</p>
+                        ${task.assignedTo ? `<p class="text-xs text-gray-500 dark:text-gray-400">Company or TA:  ${task.assignedTo}</p>` : ''}
+                        <p class="status-${task.status.toLowerCase().replace(' ', '-')}" style="display: inline-block;">${task.status}</p>
+                        ${tagsHtml}
+                        ${commentsHtml}
+                        ${attachmentsHtml}
+                    </div>
+                    <div class="task-actions">
+                        <button class="comment-btn text-green-500 hover:text-green-700" data-id="${task.id}">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                        <button class="attach-btn text-orange-500 hover:text-orange-700" data-id="${task.id}">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button class="history-btn text-gray-500 hover:text-gray-700" data-id="${task.id}">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="edit-btn text-blue-500 hover:text-blue-700" data-id="${task.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="duplicate-btn text-teal-500 hover:text-teal-700" data-id="${task.id}">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="archive-btn text-purple-500 hover:text-purple-700" data-id="${task.id}">
+                            <i class="fas fa-archive"></i>
+                        </button>
+                        <button class="delete-btn text-red-500 hover:text-red-700" data-id="${task.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Click to toggle completion (excluding buttons and checkbox)
+            taskElement.addEventListener('click', (e) => {
+                if (!e.target.closest('button') && !e.target.classList.contains('task-checkbox')) {
+                    console.log(`Task card clicked for task ${task.id}`);
+                    toggleTaskStatus(task.id);
+                }
+            });
+
+            // Checkbox for bulk actions
+            const checkbox = taskElement.querySelector('.task-checkbox');
+            checkbox.addEventListener('change', (e) => {
+                const taskId = parseInt(e.target.getAttribute('data-id'));
+                if (e.target.checked) {
+                    selectedTasks.add(taskId);
+                } else {
+                    selectedTasks.delete(taskId);
+                }
+                console.log("Selected tasks:", Array.from(selectedTasks));
+            });
+
+            // Add event listeners for buttons
+            taskElement.querySelector('.comment-btn').addEventListener('click', () => {
+                console.log(`Comment button clicked for task ${task.id}`);
+                promptComment(task.id);
+            });
+            taskElement.querySelector('.attach-btn').addEventListener('click', () => {
+                console.log(`Attach button clicked for task ${task.id}`);
+                promptAttachment(task.id);
+            });
+            taskElement.querySelector('.history-btn').addEventListener('click', () => {
+                console.log(`History button clicked for task ${task.id}`);
+                showTaskHistory(task.id);
+            });
+            taskElement.querySelector('.edit-btn').addEventListener('click', () => {
+                console.log(`Edit button clicked for task ${task.id}`);
+                editTask(task.id);
+            });
+            taskElement.querySelector('.duplicate-btn').addEventListener('click', () => {
+                console.log(`Duplicate button clicked for task ${task.id}`);
+                duplicateTask(task.id);
+            });
+            taskElement.querySelector('.archive-btn').addEventListener('click', () => {
+                console.log(`Archive button clicked for task ${task.id}`);
+                archiveTask(task.id);
+            });
+            taskElement.querySelector('.delete-btn').addEventListener('click', () => {
+                console.log(`Delete button clicked for task ${task.id}`);
+                deleteTask(task.id);
+            });
+
+            // Drag and Drop
+            taskElement.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', task.id);
+                taskElement.classList.add('dragging');
+            });
+
+            taskElement.addEventListener('dragend', () => {
+                taskElement.classList.remove('dragging');
+            });
+
+            // Swipe to Archive (Touch Support)
+            taskElement.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+
+            taskElement.addEventListener('touchmove', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                const diffX = touchStartX - touchEndX;
+                if (diffX > 0) {
+                    taskElement.classList.add('swiping');
+                }
+            });
+
+            taskElement.addEventListener('touchend', () => {
+                const diffX = touchStartX - touchEndX;
+                if (diffX > 100) { // Swipe threshold
+                    taskElement.classList.add('swiped');
+                    setTimeout(() => archiveTask(task.id), 300);
+                } else {
+                    taskElement.classList.remove('swiping');
+                }
+            });
+
+            document.getElementById(task.category).appendChild(taskElement);
+        } catch (error) {
+            console.error("Error rendering task:", error);
+            showNotification('Error rendering task.');
+        }
+    }
+
+    function promptComment(taskId) {
+        try {
+            const comment = prompt('Add a comment:');
+            if (comment) {
+                addComment(taskId, comment);
+                showNotification('Comment added successfully!');
+            }
+        } catch (error) {
+            console.error("Error prompting comment:", error);
+            showNotification('Error adding comment.');
+        }
+    }
+
+    function promptAttachment(taskId) {
+        try {
+            const attachment = prompt('Add an attachment (e.g., note or link):');
+            if (attachment) {
+                addAttachment(taskId, attachment);
+                showNotification('Attachment added successfully!');
+            }
+        } catch (error) {
+            console.error("Error prompting attachment:", error);
+            showNotification('Error adding attachment.');
+        }
+    }
+
+    function showTaskHistory(taskId) {
+        try {
+            const historyList = document.getElementById('historyList');
+            let history = JSON.parse(localStorage.getItem('history')) || [];
+            history = history.filter(h => h.taskId === taskId);
+            historyList.innerHTML = '';
+            if (history.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No history available.</p>';
+            } else {
+                history.forEach(entry => {
+                    const entryElement = document.createElement('div');
+                    entryElement.classList.add('p-4', 'bg-gray-100', 'dark:bg-gray-700', 'rounded-lg', 'mb-2');
+                    entryElement.innerHTML = `
+                        <p class="text-sm text-gray-600 dark:text-gray-400">${entry.action}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">At: ${new Date(entry.timestamp).toLocaleString()}</p>
+                    `;
+                    historyList.appendChild(entryElement);
+                });
+            }
+            historyModal.classList.remove('hidden');
+        } catch (error) {
+            console.error("Error showing task history:", error);
+            showNotification('Error showing task history.');
+        }
+    }
+
+    function renderArchive() {
+        try {
+            const archiveList = document.getElementById('archiveList');
+            let archive = JSON.parse(localStorage.getItem('archive')) || [];
+            archiveList.innerHTML = '';
+            if (archive.length === 0) {
+                archiveList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No archived tasks.</p>';
+                return;
+            }
+            archive.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.classList.add('p-4', 'bg-gray-100', 'dark:bg-gray-700', 'rounded-lg', 'mb-2', 'flex', 'justify-between', 'items-center');
+                taskElement.innerHTML = `
+                    <div>
+                        <h3 class="font-semibold">R# ${task.roomNumber}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">${task.details || 'No details'}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Archived: ${new Date(task.archivedAt).toLocaleString()}</p>
+                    </div>
+                    <button class="unarchive-btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg" data-id="${task.id}">
+                        <i class="fas fa-undo mr-2"></i>Unarchive
+                    </button>
+                `;
+                taskElement.querySelector('.unarchive-btn').addEventListener('click', () => {
+                    console.log(`Unarchive button clicked for task ${task.id}`);
+                    unarchiveTask(task.id);
+                });
+                archiveList.appendChild(taskElement);
+            });
+        } catch (error) {
+            console.error("Error rendering archive:", error);
+            showNotification('Error rendering archive.');
+        }
+    }
+
+    function editTask(taskId) {
+        try {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                document.getElementById('taskRoomNumber').value = task.roomNumber;
+                document.getElementById('taskNewReservationId').value = task.newReservationId;
+                document.getElementById('taskCategory').value = task.category;
+                document.getElementById('taskCheckOutTime').value = task.checkOutTime;
+                document.getElementById('taskDetails').value = task.details;
+                document.getElementById('taskDueDate').value = task.dueDate || new Date().toISOString().split('T')[0];
+                document.getElementById('taskPriority').value = task.priority;
+                document.getElementById('taskAssignedTo').value = task.assignedTo;
+                document.getElementById('taskStatus').value = task.status;
+                document.getElementById('taskTags').value = task.tags ? task.tags.join(', ') : '';
+                modalTitle.textContent = 'Edit Task';
+                submitBtn.textContent = 'Update Task';
+                editingTaskId = taskId;
+
+                // Show/hide fields based on category
+                checkOutTimeField.classList.add('hidden');
+                newReservationIdField.classList.add('hidden');
+                if (task.category === 'checkout') {
+                    checkOutTimeField.classList.remove('hidden');
+                } else if (task.category === 'extensions') {
+                    newReservationIdField.classList.remove('hidden');
+                }
+
+                taskModal.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error("Error editing task:", error);
+            showNotification('Error editing task.');
+        }
+    }
+
+    function allowDrop(e) {
+        e.preventDefault();
+    }
+
+    function drop(e) {
+        try {
+            e.preventDefault();
+            const taskId = e.dataTransfer.getData('text/plain');
+            const taskElement = document.querySelector(`[data-id="${taskId}"]`);
+            const newCategory = e.target.closest('.task-column').id;
+
+            e.target.closest('.task-column').appendChild(taskElement);
+
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            tasks = tasks.map(task => {
+                if (task.id == taskId) {
+                    task.category = newCategory;
+                    logHistory(taskId, `Moved to ${newCategory}`);
+                }
+                return task;
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            backupData();
+        } catch (error) {
+            console.error("Error dropping task:", error);
+            showNotification('Error moving task.');
+        }
+    }
+
+    function loadTasks() {
+        try {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            console.log("Loaded tasks:", tasks);
+            renderTasks();
+        } catch (error) {
+            console.error("Error in loadTasks:", error);
+            showNotification('Error loading tasks.');
+        }
+    }
+});
