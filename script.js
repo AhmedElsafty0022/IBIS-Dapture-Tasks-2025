@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelBtn = document.getElementById('cancelBtn');
     const clearTasksBtn = document.getElementById('clearTasksBtn');
     const searchInput = document.getElementById('searchInput');
-    const sortTasks = document.getElementById('sortTasks');
+    const sortTasks = document.getElementById('sportTasks');
     const filterPriority = document.getElementById('filterPriority');
     const tagFilter = document.getElementById('tagFilter');
     const viewArchiveBtn = document.getElementById('viewArchiveBtn');
@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskCategory = document.getElementById('taskCategory');
     const checkOutTimeField = document.getElementById('checkOutTimeField');
     const newReservationIdField = document.getElementById('newReservationIdField');
+    const assignedToField = document.getElementById('assignedToField');
     const quickAddButtons = document.querySelectorAll('.quick-add-btn');
     const darkModeToggle = document.getElementById('darkModeToggle');
     const bulkArchiveBtn = document.getElementById('bulkArchiveBtn');
@@ -334,11 +335,15 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Category changed:", category);
         checkOutTimeField.classList.add('hidden');
         newReservationIdField.classList.add('hidden');
+        assignedToField.classList.remove('hidden');
         if (category === 'checkout') {
             checkOutTimeField.classList.remove('hidden');
             document.getElementById('taskCheckOutTime').value = '12:00';
         } else if (category === 'extensions') {
             newReservationIdField.classList.remove('hidden');
+        } else if (category === 'handover' || category === 'guestrequests') {
+            assignedToField.classList.add('hidden');
+            document.getElementById('taskAssignedTo').value = '';
         }
     });
 
@@ -356,8 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const checkOutTime = document.getElementById('taskCheckOutTime').value;
         const details = document.getElementById('taskDetails').value;
         const dueDate = document.getElementById('taskDueDate').value;
+        const dueTime = document.getElementById('taskDueTime').value;
         const priority = document.getElementById('taskPriority').value;
-        const assignedTo = document.getElementById('taskAssignedTo').value.trim();
+        const assignedTo = (category === 'handover' || category === 'guestrequests') ? '' : document.getElementById('taskAssignedTo').value.trim();
         const status = document.getElementById('taskStatus').value;
         const tags = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
 
@@ -381,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             checkOutTime: category === 'checkout' ? checkOutTime : '',
             details,
             dueDate,
+            dueTime,
             priority,
             assignedTo,
             status,
@@ -431,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const inputs = document.querySelectorAll('#taskForm input, #taskForm textarea, #taskForm select');
             inputs.forEach(input => {
-                if (input.type === 'text' || input.type === 'textarea' || input.type === 'time') {
+                if (input.type === 'text' || input.type === 'textarea' || input.type === 'time' || input.type === 'date') {
                     input.value = '';
                 } else if (input.type === 'select-one') {
                     input.selectedIndex = 0;
@@ -440,6 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('taskDueDate').value = new Date().toISOString().split('T')[0];
             checkOutTimeField.classList.add('hidden');
             newReservationIdField.classList.add('hidden');
+            assignedToField.classList.remove('hidden');
             autocompleteList.innerHTML = '';
         } catch (error) {
             console.error("Error resetting form:", error);
@@ -580,6 +588,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function editComment(taskId, commentIndex, newText) {
+        try {
+            const task = await getTask(taskId);
+            if (task && task.comments && task.comments[commentIndex]) {
+                const updatedComments = [...task.comments];
+                updatedComments[commentIndex] = {
+                    text: newText,
+                    timestamp: new Date().toISOString()
+                };
+                await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
+                await logHistory(taskId, `Comment edited: ${newText}`);
+                showNotification('Comment updated successfully!');
+                renderTasks(); // Re-render to update comment section
+            }
+        } catch (error) {
+            console.error("Error editing comment:", error);
+            throw error;
+        }
+    }
+
     async function addAttachment(taskId, attachment) {
         try {
             const task = await getTask(taskId);
@@ -591,9 +619,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
                 await logHistory(taskId, `Attachment added: ${attachment}`);
                 showNotification('Attachment added successfully!');
+                renderTasks(); // Re-render to show attachments
             }
         } catch (error) {
             console.error("Error adding attachment:", error);
+            throw error;
+        }
+    }
+
+    async function editAttachment(taskId, attachmentIndex, newText) {
+        try {
+            const task = await getTask(taskId);
+            if (task && task.attachments && task.attachments[attachmentIndex]) {
+                const updatedAttachments = [...task.attachments];
+                updatedAttachments[attachmentIndex] = {
+                    text: newText,
+                    timestamp: new Date().toISOString()
+                };
+                await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
+                await logHistory(taskId, `Attachment edited: ${newText}`);
+                showNotification('Attachment updated successfully!');
+                renderTasks(); // Re-render to update attachment section
+            }
+        } catch (error) {
+            console.error("Error editing attachment:", error);
             throw error;
         }
     }
@@ -606,6 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await db.ref(`tasks/${taskId}/status`).set(newStatus);
                 await logHistory(taskId, `Task status changed to ${newStatus}`);
                 showNotification(`Task marked as ${newStatus}!`);
+                renderTasks(); // Re-render to update checkbox
             }
         } catch (error) {
             console.error("Error toggling task status:", error);
@@ -615,10 +665,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function checkReminders(tasks) {
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const dueToday = tasks.filter(task => task.dueDate === today && task.status !== 'Completed');
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentTime = now.toTimeString().slice(0, 5); // e.g., "14:30"
+            const dueToday = tasks.filter(task => 
+                task.dueDate === today && 
+                task.dueTime && 
+                task.dueTime <= currentTime && 
+                task.status !== 'Completed'
+            );
             if (dueToday.length > 0) {
-                showNotification(`Reminder: You have ${dueToday.length} task(s) due today!`);
+                showNotification(`Reminder: You have ${dueToday.length} task(s) due now!`);
             }
         } catch (error) {
             console.error("Error checking reminders:", error);
@@ -661,8 +718,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 tasks.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
             } else if (sortOption === 'dueDate') {
                 tasks.sort((a, b) => {
-                    const dateA = a.dueDate ? new Date(a.dueDate) : new Date('9999-12-31');
-                    const dateB = b.dueDate ? new Date(b.dueDate) : new Date('9999-12-31');
+                    const dateA = a.dueDate ? new Date(`${a.dueDate}T${a.dueTime || '23:59'}`) : new Date('9999-12-31');
+                    const dateB = b.dueDate ? new Date(`${b.dueDate}T${b.dueTime || '23:59'}`) : new Date('9999-12-31');
                     return dateA - dateB;
                 });
             }
@@ -708,19 +765,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (task.status === 'Completed') taskElement.classList.add('completed');
             taskElement.setAttribute('draggable', 'true');
             taskElement.setAttribute('data-id', task.id);
-            taskElement.setAttribute('data-category', task.category); // Add category for styling
+            taskElement.setAttribute('data-category', task.category);
 
-            const today = new Date();
-            const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-            if (dueDate && dueDate < today && task.status !== 'Completed') {
+            const now = new Date();
+            const dueDateTime = task.dueDate && task.dueTime ? new Date(`${task.dueDate}T${task.dueTime}`) : task.dueDate ? new Date(task.dueDate) : null;
+            if (dueDateTime && dueDateTime < now && task.status !== 'Completed') {
                 taskElement.classList.add('overdue');
             }
 
             // Format key details
-            const formattedRoomNumber = `Room #${task.roomNumber}`;
+            const formattedRoomNumber = `R#${task.roomNumber}`;
             const detailsText = task.details || 'No details provided';
-            const dueDateText = task.dueDate ? `Due: ${task.dueDate}` : '';
-            const assignedToText = task.assignedTo ? `Assigned: ${task.assignedTo}` : '';
+            const dueText = task.dueDate ? `Due: ${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}` : '';
+            const assignedToText = task.assignedTo && task.category !== 'handover' && task.category !== 'guestrequests' ? task.assignedTo : '';
             const categorySpecific = task.newReservationId ? `Resv: ${task.newReservationId}` : (task.checkOutTime ? `Out: ${task.checkOutTime}` : '');
 
             // Counts for comments, attachments, and tags
@@ -732,10 +789,15 @@ document.addEventListener('DOMContentLoaded', () => {
             let commentsHtml = '';
             if (commentCount > 0) {
                 commentsHtml = `<div class="comments-container" data-id="${task.id}">`;
-                task.comments.forEach(comment => {
+                task.comments.forEach((comment, index) => {
                     commentsHtml += `
-                        <div class="comment-item">
-                            <div>${comment.text}</div>
+                        <div class="comment-item" data-comment-index="${index}">
+                            <div class="flex justify-between items-center">
+                                <div>${comment.text}</div>
+                                <button class="edit-comment-btn text-blue-500 hover:text-blue-700 text-sm" data-id="${task.id}" data-comment-index="${index}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
                             <div class="comment-timestamp">${new Date(comment.timestamp).toLocaleString()}</div>
                         </div>
                     `;
@@ -743,51 +805,87 @@ document.addEventListener('DOMContentLoaded', () => {
                 commentsHtml += `</div>`;
             }
 
-            // Updated HTML structure
+            // Render attachments
+            let attachmentsHtml = '';
+            if (attachmentCount > 0) {
+                attachmentsHtml = `<div class="attachments-container" data-id="${task.id}">`;
+                task.attachments.forEach((attachment, index) => {
+                    attachmentsHtml += `
+                        <div class="attachment-item" data-attachment-index="${index}">
+                            <div class="flex justify-between items-center">
+                                <div>${attachment.text}</div>
+                                <button class="edit-attachment-btn text-blue-500 hover:text-blue-700 text-sm" data-id="${task.id}" data-attachment-index="${index}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                            <div class="attachment-timestamp">${new Date(attachment.timestamp).toLocaleString()}</div>
+                        </div>
+                    `;
+                });
+                attachmentsHtml += `</div>`;
+            }
+
+           detector = task.status === 'Completed' ? 'checked' : '';
+
+            // Render tags
+            let tagsHtml = '';
+            if (tagCount > 0) {
+                tagsHtml = `<div class="tags-container">`;
+                task.tags.forEach(tag => {
+                    tagsHtml += `<span class="tag-item">${tag}</span>`;
+                });
+                tagsHtml += `</div>`;
+            }
+
+            // Task card HTML with collapsible structure
             taskElement.innerHTML = `
                 <div class="swipe-background">
                     <i class="fas fa-archive text-lg"></i>
                 </div>
                 <div class="task-card-content">
-                    <div class="flex items-center">
-                        <input type="checkbox" class="task-checkbox" data-id="${task.id}">
-                        <span class="task-title ${task.status === 'Completed' ? 'line-through text-gray-500 dark:text-gray-400' : ''}">
-                            ${formattedRoomNumber}
-                        </span>
-                    </div>
-                    <div class="task-main">
-                        <div class="task-details">${detailsText}</div>
-                        <div class="task-meta">
-                            ${categorySpecific ? `<span>${categorySpecific}</span>` : ''}
-                            ${dueDateText ? `<span>${dueDateText}</span>` : ''}
-                            ${assignedToText ? `<span>${assignedToText}</span>` : ''}
+                    <div class="task-essential">
+                        <input type="checkbox" class="task-checkbox" data-id="${task.id}" aria-label="Select Task" ${task.status === 'Completed' ? 'checked' : ''}>
+                        <div class="task-essential-header">
+                            <span class="task-title ${task.status === 'Completed' ? 'line-through text-gray-500 dark:text-gray-400' : ''}">
+                                ${formattedRoomNumber}
+                            </span>
+                            ${assignedToText ? `<span class="task-meta">${assignedToText}</span>` : ''}
                         </div>
-                        <div class="task-info">
-                            <span class="status-${task.status.toLowerCase().replace(' ', '-')}" style="display: inline-block;">${task.status}</span>
-                            ${commentCount > 0 ? `<span class="info-count comment-toggle" data-id="${task.id}">💬 ${commentCount}</span>` : ''}
-                            ${attachmentCount > 0 ? `<span class="info-count">📎 ${attachmentCount}</span>` : ''}
-                            ${tagCount > 0 ? `<span class="info-count">🏷️ ${tagCount}</span>` : ''}
-                        </div>
-                        ${commentsHtml}
-                    </div>
-                    <div class="task-actions-container">
-                        <button class="expand-btn" data-id="${task.id}">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </button>
-                        <div class="task-actions">
-                            <button class="comment-btn" data-id="${task.id}" data-tooltip="Add Comment"><i class="fas fa-comment"></i></button>
-                            <button class="attach-btn" data-id="${task.id}" data-tooltip="Add Attachment"><i class="fas fa-paperclip"></i></button>
-                            <button class="history-btn" data-id="${task.id}" data-tooltip="View History"><i class="fas fa-history"></i></button>
-                            <button class="edit-btn" data-id="${task.id}" data-tooltip="Edit Task"><i class="fas fa-edit"></i></button>
-                            <button class="duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate Task"><i class="fas fa-copy"></i></button>
-                            <button class="archive-btn" data-id="${task.id}" data-tooltip="Archive Task"><i class="fas fa-archive"></i></button>
-                            <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete Task"><i class="fas fa-trash"></i></button>
+                        <div class="task-essential-meta">
+                            <span class="status-${task.status.toLowerCase().replace(' ', '-')}" style="display: inline-block;">
+                                ${task.status}
+                            </span>
+                            ${dueText ? `<span><i class="fas fa-calendar-alt mr-1"></i>${dueText}</span>` : ''}
+                            ${categorySpecific ? `<span><i class="fas fa-info-circle mr-1"></i>${categorySpecific}</span>` : ''}
+                            ${commentCount > 0 ? `<span class="comment-toggle" data-id="${task.id}"><i class="fas fa-comment mr-1"></i>${commentCount}</span>` : ''}
                         </div>
                     </div>
+                    <div class="task-expandable" data-id="${task.id}">
+                        <div class="task-main">
+                            <div class="task-details">${detailsText}</div>
+                            ${tagsHtml}
+                            ${attachmentsHtml}
+                            ${commentsHtml}
+                        </div>
+                        <div class="task-actions-container">
+                            <div class="task-actions">
+                                <button class="comment-btn" data-id="${task.id}" data-tooltip="Add Comment" aria-label="Add Comment"><i class="fas fa-comment"></i></button>
+                                <button class="attach-btn" data-id="${task.id}" data-tooltip="Add Attachment" aria-label="Add Attachment"><i class="fas fa-paperclip"></i></button>
+                                <button class="history-btn" data-id="${task.id}" data-tooltip="View History" aria-label="View History"><i class="fas fa-history"></i></button>
+                                <button class="edit-btn" data-id="${task.id}" data-tooltip="Edit Task" aria-label="Edit Task"><i class="fas fa-edit"></i></button>
+                                <button class="duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate Task" aria-label="Duplicate Task"><i class="fas fa-copy"></i></button>
+                                <button class="archive-btn" data-id="${task.id}" data-tooltip="Archive Task" aria-label="Archive Task"><i class="fas fa-archive"></i></button>
+                                <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete Task" aria-label="Delete Task"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="expand-btn" data-id="${task.id}" aria-label="Expand Task">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
                 </div>
             `;
 
-            // Toggle completion only on checkbox change
+            // Toggle completion on checkbox change
             const checkbox = taskElement.querySelector('.task-checkbox');
             checkbox.addEventListener('change', (e) => {
                 console.log(`Checkbox toggled for task ${task.id}`);
@@ -797,23 +895,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // Checkbox for bulk actions
             checkbox.addEventListener('change', (e) => {
                 const taskId = parseInt(e.target.getAttribute('data-id'));
-                if (e.target.checked) {
+                if (e.target.checked && !selectedTasks.has(taskId)) {
                     selectedTasks.add(taskId);
-                } else {
+                } else if (!e.target.checked) {
                     selectedTasks.delete(taskId);
                 }
                 console.log("Selected tasks:", Array.from(selectedTasks));
             });
 
-            // Expand/Collapse Actions
+            // Expand/Collapse Task
             const expandBtn = taskElement.querySelector('.expand-btn');
             expandBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card click from triggering
-                const actions = taskElement.querySelector('.task-actions');
-                actions.classList.toggle('active');
-                expandBtn.innerHTML = actions.classList.contains('active')
-                    ? '<i class="fas fa-times"></i>'
-                    : '<i class="fas fa-ellipsis-h"></i>';
+                e.stopPropagation();
+                const expandable = taskElement.querySelector('.task-expandable');
+                const isExpanded = expandable.classList.contains('active');
+                expandable.classList.toggle('active');
+                taskElement.classList.toggle('expanded');
+                expandBtn.innerHTML = isExpanded
+                    ? '<i class="fas fa-chevron-down"></i>'
+                    : '<i class="fas fa-chevron-up"></i>';
+                expandBtn.setAttribute('aria-label', isExpanded ? 'Expand Task' : 'Collapse Task');
             });
 
             // Toggle Comments
@@ -821,38 +922,105 @@ document.addEventListener('DOMContentLoaded', () => {
             if (commentToggle) {
                 commentToggle.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const expandable = taskElement.querySelector('.task-expandable');
                     const commentsContainer = taskElement.querySelector('.comments-container');
+                    if (!expandable.classList.contains('active')) {
+                        expandable.classList.add('active');
+                        taskElement.classList.add('expanded');
+                        expandBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+                        expandBtn.setAttribute('aria-label', 'Collapse Task');
+                    }
                     commentsContainer.classList.toggle('active');
                 });
             }
 
-            // Add event listeners for action buttons, ensuring they don't trigger card click
+            // Edit Comment Buttons
+            const editCommentButtons = taskElement.querySelectorAll('.edit-comment-btn');
+            editCommentButtons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const taskId = parseInt(button.getAttribute('data-id'));
+                    const commentIndex = parseInt(button.getAttribute('data-comment-index'));
+                    const task = await getTask(taskId);
+                    if (task && task.comments && task.comments[commentIndex]) {
+                        const newComment = prompt('Edit your comment:', task.comments[commentIndex].text);
+                        if (newComment) {
+                            await editComment(taskId, commentIndex, newComment);
+                        }
+                    }
+                });
+            });
+
+            // Edit Attachment Buttons
+            const editAttachmentButtons = taskElement.querySelectorAll('.edit-attachment-btn');
+            editAttachmentButtons.forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const taskId = parseInt(button.getAttribute('data-id'));
+                    const attachmentIndex = parseInt(button.getAttribute('data-attachment-index'));
+                    const task = await getTask(taskId);
+                    if (task && task.attachments && task.attachments[attachmentIndex]) {
+                        const newAttachment = prompt('Edit attachment description:', task.attachments[attachmentIndex].text);
+                        if (newAttachment) {
+                            await editAttachment(taskId, attachmentIndex, newAttachment);
+                        }
+                    }
+                });
+            });
+
+            // Action buttons
             const actionButtons = taskElement.querySelectorAll('.task-actions button');
             actionButtons.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent card click from triggering
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
                     const taskId = parseInt(button.getAttribute('data-id'));
-                    if (button.classList.contains('comment-btn')) {
-                        console.log(`Comment button clicked for task ${taskId}`);
-                        promptComment(taskId);
-                    } else if (button.classList.contains('attach-btn')) {
-                        console.log(`Attach button clicked for task ${taskId}`);
-                        promptAttachment(taskId);
-                    } else if (button.classList.contains('history-btn')) {
-                        console.log(`History button clicked for task ${taskId}`);
-                        showTaskHistory(taskId);
-                    } else if (button.classList.contains('edit-btn')) {
+                    if (button.classList.contains('edit-btn')) {
                         console.log(`Edit button clicked for task ${taskId}`);
-                        editTask(taskId);
-                    } else if (button.classList.contains('duplicate-btn')) {
-                        console.log(`Duplicate button clicked for task ${taskId}`);
-                        duplicateTask(taskId);
+                        const task = await getTask(taskId);
+                        if (task) {
+                            editingTaskId = taskId;
+                            modalTitle.textContent = 'Edit Task';
+                            submitBtn.textContent = 'Update Task';
+                            document.getElementById('taskRoomNumber').value = task.roomNumber;
+                            document.getElementById('taskNewReservationId').value = task.newReservationId || '';
+                            document.getElementById('taskCategory').value = task.category;
+                            document.getElementById('taskCategory').dispatchEvent(new Event('change'));
+                            document.getElementById('taskCheckOutTime').value = task.checkOutTime || '';
+                            document.getElementById('taskDetails').value = task.details || '';
+                            document.getElementById('taskDueDate').value = task.dueDate || '';
+                            document.getElementById('taskDueTime').value = task.dueTime || '';
+                            document.getElementById('taskPriority').value = task.priority || 'low';
+                            document.getElementById('taskAssignedTo').value = task.assignedTo || '';
+                            document.getElementById('taskStatus').value = task.status || 'Pending';
+                            document.getElementById('taskTags').value = task.tags ? task.tags.join(', ') : '';
+                            taskModal.classList.remove('hidden');
+                        }
                     } else if (button.classList.contains('archive-btn')) {
                         console.log(`Archive button clicked for task ${taskId}`);
-                        archiveTask(taskId);
+                        await archiveTask(taskId);
                     } else if (button.classList.contains('delete-btn')) {
                         console.log(`Delete button clicked for task ${taskId}`);
-                        deleteTask(taskId);
+                        if (confirm('Are you sure you want to delete this task?')) {
+                            await deleteTask(taskId);
+                        }
+                    } else if (button.classList.contains('duplicate-btn')) {
+                        console.log(`Duplicate button clicked for task ${taskId}`);
+                        await duplicateTask(taskId);
+                    } else if (button.classList.contains('history-btn')) {
+                        console.log(`History button clicked for task ${taskId}`);
+                        renderHistory(taskId);
+                    } else if (button.classList.contains('comment-btn')) {
+                        console.log(`Comment button clicked for task ${taskId}`);
+                        const comment = prompt('Enter your comment:');
+                        if (comment) {
+                            await addComment(taskId, comment);
+                        }
+                    } else if (button.classList.contains('attach-btn')) {
+                        console.log(`Attachment button clicked for task ${taskId}`);
+                        const attachment = prompt('Enter attachment description:');
+                        if (attachment) {
+                            await addAttachment(taskId, attachment);
+                        }
                     }
                 });
             });
@@ -877,104 +1045,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 const diffX = touchStartX - touchEndX;
                 if (diffX > 0) {
                     taskElement.classList.add('swiping');
+                    taskElement.style.transform = `translateX(-${Math.min(diffX, 56)}px)`;
                 }
             });
 
-            taskElement.addEventListener('touchend', () => {
+            taskElement.addEventListener('touchend', async () => {
                 const diffX = touchStartX - touchEndX;
-                if (diffX > 100) {
+                if (diffX > 80) {
                     taskElement.classList.add('swiped');
-                    setTimeout(() => archiveTask(task.id), 300);
+                    await archiveTask(task.id);
                 } else {
                     taskElement.classList.remove('swiping');
+                    taskElement.style.transform = 'translateX(0)';
                 }
             });
 
-            document.getElementById(task.category).appendChild(taskElement);
+            // Append to appropriate column
+            const column = document.getElementById(task.category);
+            if (column) {
+                column.appendChild(taskElement);
+            }
         } catch (error) {
             console.error("Error rendering task:", error);
             showNotification('Error rendering task.');
         }
     }
 
-    function promptComment(taskId) {
-        try {
-            const comment = prompt('Add a comment:');
-            if (comment) {
-                addComment(taskId, comment);
-            }
-        } catch (error) {
-            console.error("Error prompting comment:", error);
-            showNotification('Error adding comment.');
-        }
-    }
-
-    function promptAttachment(taskId) {
-        try {
-            const attachment = prompt('Add an attachment (e.g., note or link):');
-            if (attachment) {
-                addAttachment(taskId, attachment);
-            }
-        } catch (error) {
-            console.error("Error prompting attachment:", error);
-            showNotification('Error adding attachment.');
-        }
-    }
-
-    async function showTaskHistory(taskId) {
-        try {
-            const historyList = document.getElementById('historyList');
-            const snapshot = await db.ref('history').once('value');
-            let history = snapshot.val() ? Object.values(snapshot.val()) : [];
-            history = history.filter(h => h.taskId === taskId);
-            historyList.innerHTML = '';
-            if (history.length === 0) {
-                historyList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No history available.</p>';
-            } else {
-                history.forEach(entry => {
-                    const entryElement = document.createElement('div');
-                    entryElement.classList.add('p-4', 'bg-gray-100', 'dark:bg-gray-700', 'rounded-lg', 'mb-2');
-                    entryElement.innerHTML = `
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${entry.action}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">At: ${new Date(entry.timestamp).toLocaleString()}</p>
-                    `;
-                    historyList.appendChild(entryElement);
-                });
-            }
-            historyModal.classList.remove('hidden');
-        } catch (error) {
-            console.error("Error showing task history:", error);
-            showNotification('Error showing task history.');
-        }
-    }
-
     async function renderArchive() {
         try {
             const archiveList = document.getElementById('archiveList');
-            const snapshot = await db.ref('archive').once('value');
-            let archive = snapshot.val() ? Object.values(snapshot.val()) : [];
             archiveList.innerHTML = '';
-            if (archive.length === 0) {
+            const snapshot = await db.ref('archive').once('value');
+            const archivedTasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+
+            if (archivedTasks.length === 0) {
                 archiveList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No archived tasks.</p>';
                 return;
             }
-            archive.forEach(task => {
+
+            archivedTasks.forEach(task => {
                 const taskElement = document.createElement('div');
                 taskElement.classList.add('p-4', 'bg-gray-100', 'dark:bg-gray-700', 'rounded-lg', 'mb-2', 'flex', 'justify-between', 'items-center');
                 taskElement.innerHTML = `
                     <div>
-                        <h3 class="font-semibold">R# ${task.roomNumber}</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${task.details || 'No details'}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Archived: ${new Date(task.archivedAt).toLocaleString()}</p>
+                        <strong>Room #${task.roomNumber}</strong> - ${task.category}
+                        <p class="text-sm text-gray-600 dark:text-gray-300">${task.details || 'No details'}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Archived on ${new Date(task.archivedAt).toLocaleString()}</p>
                     </div>
-                    <button class="unarchive-btn bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg" data-id="${task.id}">
-                        <i class="fas fa-undo mr-2"></i>Unarchive
-                    </button>
+                    <div class="flex space-x-2">
+                        <button class="unarchive-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg" data-id="${task.id}">
+                            <i class="fas fa-undo mr-1"></i>Unarchive
+                        </button>
+                        <button class="delete-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg" data-id="${task.id}">
+                            <i class="fas fa-trash mr-1"></i>Delete
+                        </button>
+                    </div>
                 `;
-                taskElement.querySelector('.unarchive-btn').addEventListener('click', () => {
+
+                const unarchiveBtn = taskElement.querySelector('.unarchive-btn');
+                unarchiveBtn.addEventListener('click', async () => {
                     console.log(`Unarchive button clicked for task ${task.id}`);
-                    unarchiveTask(task.id);
+                    await unarchiveTask(task.id);
                 });
+
+                const deleteBtn = taskElement.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', async () => {
+                    console.log(`Delete button clicked for archived task ${task.id}`);
+                    if (confirm('Are you sure you want to permanently delete this archived task?')) {
+                        await db.ref(`archive/${task.id}`).remove();
+                        await logHistory(task.id, `Archived task deleted`);
+                        showNotification('Archived task deleted successfully!');
+                    }
+                });
+
                 archiveList.appendChild(taskElement);
             });
         } catch (error) {
@@ -983,62 +1126,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function editTask(taskId) {
+    async function renderHistory(taskId) {
         try {
-            const task = await getTask(taskId);
-            if (task) {
-                document.getElementById('taskRoomNumber').value = task.roomNumber;
-                document.getElementById('taskNewReservationId').value = task.newReservationId;
-                document.getElementById('taskCategory').value = task.category;
-                document.getElementById('taskCheckOutTime').value = task.checkOutTime;
-                document.getElementById('taskDetails').value = task.details;
-                document.getElementById('taskDueDate').value = task.dueDate || new Date().toISOString().split('T')[0];
-                document.getElementById('taskPriority').value = task.priority;
-                document.getElementById('taskAssignedTo').value = task.assignedTo;
-                document.getElementById('taskStatus').value = task.status;
-                document.getElementById('taskTags').value = task.tags ? task.tags.join(', ') : '';
-                modalTitle.textContent = 'Edit Task';
-                submitBtn.textContent = 'Update Task';
-                editingTaskId = taskId;
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            const snapshot = await db.ref('history').once('value');
+            const history = snapshot.val() ? Object.values(snapshot.val()).filter(entry => entry.taskId === taskId) : [];
 
-                checkOutTimeField.classList.add('hidden');
-                newReservationIdField.classList.add('hidden');
-                if (task.category === 'checkout') {
-                    checkOutTimeField.classList.remove('hidden');
-                } else if (task.category === 'extensions') {
-                    newReservationIdField.classList.remove('hidden');
-                }
-
-                taskModal.classList.remove('hidden');
+            if (history.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No history for this task.</p>';
+                return;
             }
+
+            history.forEach(entry => {
+                const entryElement = document.createElement('div');
+                entryElement.classList.add('p-4', 'bg-gray-100', 'dark:bg-gray-700', 'rounded-lg', 'mb-2');
+                entryElement.innerHTML = `
+                    <p>${entry.action}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(entry.timestamp).toLocaleString()}</p>
+                `;
+                historyList.appendChild(entryElement);
+            });
+
+            historyModal.classList.remove('hidden');
         } catch (error) {
-            console.error("Error editing task:", error);
-            showNotification('Error editing task.');
+            console.error("Error rendering history:", error);
+            showNotification('Error rendering history.');
         }
     }
 
-    function allowDrop(e) {
+    // Drag and Drop Handlers
+    window.allowDrop = (e) => {
         e.preventDefault();
-    }
+    };
 
-    async function drop(e) {
-        try {
-            e.preventDefault();
-            const taskId = e.dataTransfer.getData('text/plain');
-            const taskElement = document.querySelector(`[data-id="${taskId}"]`);
-            const targetColumn = e.target.closest('.task-column');
-            if (!targetColumn) return;
-            const newCategory = targetColumn.id;
-            const task = await getTask(taskId);
-            if (task) {
-                task.category = newCategory;
-                await updateTask(task);
-                await logHistory(taskId, `Task moved to ${newCategory}`);
-                showNotification('Task moved successfully!');
+    window.drop = async (e) => {
+        e.preventDefault();
+        const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+        const newCategory = e.target.closest('.task-column').id;
+        const task = await getTask(taskId);
+        if (task && task.category !== newCategory) {
+            task.category = newCategory;
+            if (newCategory === 'handover' || newCategory === 'guestrequests') {
+                task.assignedTo = '';
             }
-        } catch (error) {
-            console.error("Error dropping task:", error);
-            showNotification('Error moving task.');
+            await updateTask(task);
+            await logHistory(taskId, `Task moved to ${newCategory}`);
+            showNotification('Task category updated!');
         }
-    }
+    };
 });
