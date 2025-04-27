@@ -1,6 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed");
 
+    // Firebase Configuration (Replace with your Firebase config)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBeebZLl4vpeD-NI3b1ZASPllENBs6loOs",
+        authDomain: "dapture-company-task-manager.firebaseapp.com",
+        databaseURL: "https://dapture-company-task-manager-default-rtdb.firebaseio.com",
+        projectId: "dapture-company-task-manager",
+        storageBucket: "dapture-company-task-manager.firebasestorage.app",
+        messagingSenderId: "962797299889",
+        appId: "1:962797299889:web:c13b539751cb473a335a90"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     // Global variables
     let editingTaskId = null;
     let touchStartX = 0;
@@ -41,10 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('dark');
     }
 
-    // Initial load of tasks
+    // Initial load of tasks (real-time listener)
     try {
-        loadTasks();
-        checkReminders();
+        db.ref('tasks').on('value', (snapshot) => {
+            const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+            renderTasks();
+            checkReminders(tasks);
+        });
+        db.ref('archive').on('value', () => renderArchive());
     } catch (error) {
         console.error("Error loading tasks on page load:", error);
         showNotification('Error loading tasks. Please try importing a backup.');
@@ -63,9 +82,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export Tasks
     if (exportTasksBtn) {
-        exportTasksBtn.addEventListener('click', () => {
-            exportData();
-            showNotification('Tasks exported successfully!');
+        exportTasksBtn.addEventListener('click', async () => {
+            try {
+                const tasksSnapshot = await db.ref('tasks').once('value');
+                const archiveSnapshot = await db.ref('archive').once('value');
+                const historySnapshot = await db.ref('history').once('value');
+                const data = {
+                    tasks: tasksSnapshot.val() ? Object.values(tasksSnapshot.val()) : [],
+                    archive: archiveSnapshot.val() ? Object.values(archiveSnapshot.val()) : [],
+                    history: historySnapshot.val() ? Object.values(historySnapshot.val()) : []
+                };
+                const dataStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showNotification('Tasks exported successfully!');
+            } catch (error) {
+                console.error("Error exporting data:", error);
+                showNotification('Error exporting data.');
+            }
         });
     }
 
@@ -78,14 +117,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const data = JSON.parse(event.target.result);
-                    if (data.tasks) localStorage.setItem('tasks', JSON.stringify(data.tasks));
-                    if (data.archive) localStorage.setItem('archive', JSON.stringify(data.archive));
-                    if (data.history) localStorage.setItem('history', JSON.stringify(data.history));
-                    renderTasks();
-                    renderArchive();
+                    if (data.tasks) {
+                        const tasksRef = db.ref('tasks');
+                        await tasksRef.set(data.tasks.reduce((acc, task) => {
+                            acc[task.id] = task;
+                            return acc;
+                        }, {}));
+                    }
+                    if (data.archive) {
+                        const archiveRef = db.ref('archive');
+                        await archiveRef.set(data.archive.reduce((acc, task) => {
+                            acc[task.id] = task;
+                            return acc;
+                        }, {}));
+                    }
+                    if (data.history) {
+                        const historyRef = db.ref('history');
+                        await historyRef.set(data.history.reduce((acc, entry) => {
+                            acc[Date.now() + Math.random()] = entry;
+                            return acc;
+                        }, {}));
+                    }
                     showNotification('Data imported successfully!');
                 } catch (error) {
                     console.error("Error importing data:", error);
@@ -139,15 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear All Tasks
     if (clearTasksBtn) {
-        clearTasksBtn.addEventListener('click', () => {
+        clearTasksBtn.addEventListener('click', async () => {
             console.log("Clear All button clicked");
             if (confirm('Are you sure you want to clear all tasks? This will delete all tasks, archived tasks, and history.')) {
-                localStorage.removeItem('tasks');
-                localStorage.removeItem('archive');
-                localStorage.removeItem('history');
-                backupData(); // Backup before clearing
-                renderTasks();
-                showNotification('All tasks cleared!');
+                try {
+                    await db.ref('tasks').remove();
+                    await db.ref('archive').remove();
+                    await db.ref('history').remove();
+                    showNotification('All tasks cleared!');
+                } catch (error) {
+                    console.error("Error clearing tasks:", error);
+                    showNotification('Error clearing tasks.');
+                }
             }
         });
     } else {
@@ -198,29 +256,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Bulk Archive
     if (bulkArchiveBtn) {
-        bulkArchiveBtn.addEventListener('click', () => {
+        bulkArchiveBtn.addEventListener('click', async () => {
             if (selectedTasks.size === 0) {
                 alert('Please select tasks to archive.');
                 return;
             }
-            selectedTasks.forEach(taskId => archiveTask(taskId));
-            selectedTasks.clear();
-            renderTasks();
-            showNotification('Selected tasks archived successfully!');
+            try {
+                for (let taskId of selectedTasks) {
+                    await archiveTask(taskId);
+                }
+                selectedTasks.clear();
+                showNotification('Selected tasks archived successfully!');
+            } catch (error) {
+                console.error("Error archiving tasks:", error);
+                showNotification('Error archiving tasks.');
+            }
         });
     }
 
     // Bulk Delete
     if (bulkDeleteBtn) {
-        bulkDeleteBtn.addEventListener('click', () => {
+        bulkDeleteBtn.addEventListener('click', async () => {
             if (selectedTasks.size === 0) {
                 alert('Please select tasks to delete.');
                 return;
             }
-            selectedTasks.forEach(taskId => deleteTask(taskId));
-            selectedTasks.clear();
-            renderTasks();
-            showNotification('Selected tasks deleted successfully!');
+            try {
+                for (let taskId of selectedTasks) {
+                    await deleteTask(taskId);
+                }
+                selectedTasks.clear();
+                showNotification('Selected tasks deleted successfully!');
+            } catch (error) {
+                console.error("Error deleting tasks:", error);
+                showNotification('Error deleting tasks.');
+            }
         });
     }
 
@@ -274,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Submit Task Form
     if (submitBtn) {
-        submitBtn.addEventListener('click', (e) => {
+        submitBtn.addEventListener('click', async (e) => {
             console.log("Submit button clicked");
             e.preventDefault();
             const roomNumber = document.getElementById('taskRoomNumber').value.trim();
@@ -305,24 +375,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 status,
                 tags,
                 createdAt: new Date().toISOString(),
-                comments: editingTaskId ? (getTask(editingTaskId)?.comments || []) : [],
-                history: editingTaskId ? (getTask(editingTaskId)?.history || []) : [],
-                attachments: editingTaskId ? (getTask(editingTaskId)?.attachments || []) : []
+                comments: editingTaskId ? (await getTask(editingTaskId))?.comments || [] : [],
+                history: editingTaskId ? (await getTask(editingTaskId))?.history || [] : [],
+                attachments: editingTaskId ? (await getTask(editingTaskId))?.attachments || [] : []
             };
 
-            if (editingTaskId) {
-                updateTask(task);
-                logHistory(task.id, `Task updated by user`);
-                showNotification('Task updated successfully!');
-            } else {
-                saveTask(task);
-                logHistory(task.id, `Task created by user`);
-                showNotification('Task added successfully!');
+            try {
+                if (editingTaskId) {
+                    await updateTask(task);
+                    await logHistory(task.id, `Task updated affairs`);
+                    showNotification('Task updated successfully!');
+                } else {
+                    await saveTask(task);
+                    await logHistory(task.id, `Task created by user`);
+                    showNotification('Task added successfully!');
+                }
+                taskModal.classList.add('hidden');
+                resetForm();
+            } catch (error) {
+                console.error("Error submitting task:", error);
+                showNotification('Error submitting task.');
             }
-            backupData();
-            renderTasks();
-            taskModal.classList.add('hidden');
-            resetForm();
         });
     } else {
         console.error("Submit button not found");
@@ -379,53 +452,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function saveTask(task) {
+    async function saveTask(task) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks.push(task);
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            backupData();
+            await db.ref(`tasks/${task.id}`).set(task);
         } catch (error) {
             console.error("Error saving task:", error);
             showNotification('Error saving task.');
         }
     }
 
-    function updateTask(updatedTask) {
+    async function updateTask(updatedTask) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks = tasks.map(task => task.id === updatedTask.id ? updatedTask : task);
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            backupData();
+            await db.ref(`tasks/${updatedTask.id}`).set(updatedTask);
         } catch (error) {
             console.error("Error updating task:", error);
             showNotification('Error updating task.');
         }
     }
 
-    function getTask(taskId) {
+    async function getTask(taskId) {
         try {
-            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            return tasks.find(task => task.id === taskId);
+            const snapshot = await db.ref(`tasks/${taskId}`).once('value');
+            return snapshot.val();
         } catch (error) {
             console.error("Error getting task:", error);
             return null;
         }
     }
 
-    function archiveTask(taskId) {
+    async function archiveTask(taskId) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            let archive = JSON.parse(localStorage.getItem('archive')) || [];
-            const task = tasks.find(t => t.id === taskId);
+            const taskSnapshot = await db.ref(`tasks/${taskId}`).once('value');
+            const task = taskSnapshot.val();
             if (task) {
-                archive.push({ ...task, archivedAt: new Date().toISOString() });
-                tasks = tasks.filter(t => t.id !== taskId);
-                localStorage.setItem('tasks', JSON.stringify(tasks));
-                localStorage.setItem('archive', JSON.stringify(archive));
-                logHistory(taskId, `Task archived`);
-                backupData();
-                renderTasks();
+                await db.ref(`archive/${taskId}`).set({ ...task, archivedAt: new Date().toISOString() });
+                await db.ref(`tasks/${taskId}`).remove();
+                await logHistory(taskId, `Task archived`);
                 showNotification('Task archived successfully!');
             }
         } catch (error) {
@@ -434,20 +496,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function unarchiveTask(taskId) {
+    async function unarchiveTask(taskId) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            let archive = JSON.parse(localStorage.getItem('archive')) || [];
-            const task = archive.find(t => t.id === taskId);
+            const taskSnapshot = await db.ref(`archive/${taskId}`).once('value');
+            const task = taskSnapshot.val();
             if (task) {
-                tasks.push({ ...task, archivedAt: null });
-                archive = archive.filter(t => t.id !== taskId);
-                localStorage.setItem('tasks', JSON.stringify(tasks));
-                localStorage.setItem('archive', JSON.stringify(archive));
-                logHistory(taskId, `Task unarchived`);
-                backupData();
-                renderTasks();
-                renderArchive();
+                await db.ref(`tasks/${taskId}`).set({ ...task, archivedAt: null });
+                await db.ref(`archive/${taskId}`).remove();
+                await logHistory(taskId, `Task unarchived`);
                 showNotification('Task unarchived successfully!');
             }
         } catch (error) {
@@ -456,14 +512,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function deleteTask(taskId) {
+    async function deleteTask(taskId) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks = tasks.filter(task => task.id !== taskId);
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            logHistory(taskId, `Task deleted`);
-            backupData();
-            renderTasks();
+            await db.ref(`tasks/${taskId}`).remove();
+            await logHistory(taskId, `Task deleted`);
             showNotification('Task deleted successfully!');
         } catch (error) {
             console.error("Error deleting task:", error);
@@ -471,15 +523,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function duplicateTask(taskId) {
+    async function duplicateTask(taskId) {
         try {
-            const task = getTask(taskId);
+            const task = await getTask(taskId);
             if (task) {
                 const newTask = { ...task, id: Date.now(), createdAt: new Date().toISOString() };
-                saveTask(newTask);
-                logHistory(newTask.id, `Task duplicated from ${taskId}`);
-                backupData();
-                renderTasks();
+                await saveTask(newTask);
+                await logHistory(newTask.id, `Task duplicated from ${taskId}`);
                 showNotification('Task duplicated successfully!');
             }
         } catch (error) {
@@ -488,89 +538,73 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function logHistory(taskId, action) {
+    async function logHistory(taskId, action) {
         try {
-            let history = JSON.parse(localStorage.getItem('history')) || [];
-            history.push({
+            const historyEntry = {
                 taskId,
                 action,
                 timestamp: new Date().toISOString()
-            });
-            localStorage.setItem('history', JSON.stringify(history));
-            backupData();
+            };
+            await db.ref('history').push(historyEntry);
         } catch (error) {
             console.error("Error logging history:", error);
             showNotification('Error logging history.');
         }
     }
 
-    function addComment(taskId, comment) {
+    async function addComment(taskId, comment) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks = tasks.map(task => {
-                if (task.id === taskId) {
-                    task.comments.push({
-                        text: comment,
-                        timestamp: new Date().toISOString()
-                    });
-                    logHistory(taskId, `Comment added: ${comment}`);
-                }
-                return task;
-            });
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            backupData();
-            renderTasks();
+            const task = await getTask(taskId);
+            if (task) {
+                const updatedComments = [
+                    ...(task.comments || []),
+                    { text: comment, timestamp: new Date().toISOString() }
+                ];
+                await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
+                await logHistory(taskId, `Comment added: ${comment}`);
+                showNotification('Comment added successfully!');
+            }
         } catch (error) {
             console.error("Error adding comment:", error);
             showNotification('Error adding comment.');
         }
     }
 
-    function addAttachment(taskId, attachment) {
+    async function addAttachment(taskId, attachment) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks = tasks.map(task => {
-                if (task.id === taskId) {
-                    task.attachments.push({
-                        text: attachment,
-                        timestamp: new Date().toISOString()
-                    });
-                    logHistory(taskId, `Attachment added: ${attachment}`);
-                }
-                return task;
-            });
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            backupData();
-            renderTasks();
+            const task = await getTask(taskId);
+            if (task) {
+                const updatedAttachments = [
+                    ...(task.attachments || []),
+                    { text: attachment, timestamp: new Date().toISOString() }
+                ];
+                await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
+                await logHistory(taskId, `Attachment added: ${attachment}`);
+                showNotification('Attachment added successfully!');
+            }
         } catch (error) {
             console.error("Error adding attachment:", error);
             showNotification('Error adding attachment.');
         }
     }
 
-    function toggleTaskStatus(taskId) {
+    async function toggleTaskStatus(taskId) {
         try {
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks = tasks.map(task => {
-                if (task.id === taskId) {
-                    task.status = task.status === 'Completed' ? 'Pending' : 'Completed';
-                    logHistory(taskId, `Task status changed to ${task.status}`);
-                }
-                return task;
-            });
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            backupData();
-            renderTasks();
-            showNotification(`Task marked as ${tasks.find(t => t.id === taskId).status}!`);
+            const task = await getTask(taskId);
+            if (task) {
+                const newStatus = task.status === 'Completed' ? 'Pending' : 'Completed';
+                await db.ref(`tasks/${taskId}/status`).set(newStatus);
+                await logHistory(taskId, `Task status changed to ${newStatus}`);
+                showNotification(`Task marked as ${newStatus}!`);
+            }
         } catch (error) {
             console.error("Error toggling task status:", error);
             showNotification('Error toggling task status.');
         }
     }
 
-    function checkReminders() {
+    function checkReminders(tasks) {
         try {
-            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
             const today = new Date().toISOString().split('T')[0];
             const dueToday = tasks.filter(task => task.dueDate === today && task.status !== 'Completed');
             if (dueToday.length > 0) {
@@ -581,71 +615,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function exportData() {
-        try {
-            const data = {
-                tasks: JSON.parse(localStorage.getItem('tasks')) || [],
-                archive: JSON.parse(localStorage.getItem('archive')) || [],
-                history: JSON.parse(localStorage.getItem('history')) || []
-            };
-            const dataStr = JSON.stringify(data, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Error exporting data:", error);
-            showNotification('Error exporting data.');
-        }
-    }
-
-    function backupData() {
-    // This now just does a silent backup to localStorage without downloading
-    try {
-        const backup = {
-            timestamp: new Date().toISOString(),
-            tasks: JSON.parse(localStorage.getItem('tasks')) || [],
-            archive: JSON.parse(localStorage.getItem('archive')) || [],
-            history: JSON.parse(localStorage.getItem('history')) || []
-        };
-        localStorage.setItem('lastBackup', JSON.stringify(backup));
-        console.log("Data backed up silently");
-    } catch (error) {
-        console.error("Error backing up data:", error);
-    }
-}
-
-// Keep the export function but only call it when explicitly requested
-function exportData() {
-    try {
-        const data = {
-            tasks: JSON.parse(localStorage.getItem('tasks')) || [],
-            archive: JSON.parse(localStorage.getItem('archive')) || [],
-            history: JSON.parse(localStorage.getItem('history')) || []
-        };
-        const dataStr = JSON.stringify(data, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    } catch (error) {
-        console.error("Error exporting data:", error);
-        showNotification('Error exporting data.');
-    }
-}
-
-    function renderTasks(query = '') {
+    async function renderTasks(query = '') {
         try {
             const sortOption = sortTasks.value;
             const priorityFilter = filterPriority.value;
             const tagQuery = tagFilter.value.toLowerCase();
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+            const snapshot = await db.ref('tasks').once('value');
+            let tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
 
             // Filter by search query
             if (query) {
@@ -734,7 +710,7 @@ function exportData() {
 
             // Render comments
             let commentsHtml = '';
-            if (task.comments.length > 0) {
+            if (task.comments && task.comments.length > 0) {
                 commentsHtml = '<div class="mt-2">';
                 task.comments.forEach(comment => {
                     commentsHtml += `
@@ -748,7 +724,7 @@ function exportData() {
 
             // Render attachments
             let attachmentsHtml = '';
-            if (task.attachments.length > 0) {
+            if (task.attachments && task.attachments.length > 0) {
                 attachmentsHtml = '<div class="mt-2">';
                 task.attachments.forEach(attachment => {
                     attachmentsHtml += `
@@ -910,7 +886,6 @@ function exportData() {
             const comment = prompt('Add a comment:');
             if (comment) {
                 addComment(taskId, comment);
-                showNotification('Comment added successfully!');
             }
         } catch (error) {
             console.error("Error prompting comment:", error);
@@ -923,7 +898,6 @@ function exportData() {
             const attachment = prompt('Add an attachment (e.g., note or link):');
             if (attachment) {
                 addAttachment(taskId, attachment);
-                showNotification('Attachment added successfully!');
             }
         } catch (error) {
             console.error("Error prompting attachment:", error);
@@ -931,10 +905,11 @@ function exportData() {
         }
     }
 
-    function showTaskHistory(taskId) {
+    async function showTaskHistory(taskId) {
         try {
             const historyList = document.getElementById('historyList');
-            let history = JSON.parse(localStorage.getItem('history')) || [];
+            const snapshot = await db.ref('history').once('value');
+            let history = snapshot.val() ? Object.values(snapshot.val()) : [];
             history = history.filter(h => h.taskId === taskId);
             historyList.innerHTML = '';
             if (history.length === 0) {
@@ -957,10 +932,11 @@ function exportData() {
         }
     }
 
-    function renderArchive() {
+    async function renderArchive() {
         try {
             const archiveList = document.getElementById('archiveList');
-            let archive = JSON.parse(localStorage.getItem('archive')) || [];
+            const snapshot = await db.ref('archive').once('value');
+            let archive = snapshot.val() ? Object.values(snapshot.val()) : [];
             archiveList.innerHTML = '';
             if (archive.length === 0) {
                 archiveList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No archived tasks.</p>';
@@ -991,10 +967,9 @@ function exportData() {
         }
     }
 
-    function editTask(taskId) {
+    async function editTask(taskId) {
         try {
-            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            const task = tasks.find(t => t.id === taskId);
+            const task = await getTask(taskId);
             if (task) {
                 document.getElementById('taskRoomNumber').value = task.roomNumber;
                 document.getElementById('taskNewReservationId').value = task.newReservationId;
@@ -1031,7 +1006,7 @@ function exportData() {
         e.preventDefault();
     }
 
-    function drop(e) {
+    async function drop(e) {
         try {
             e.preventDefault();
             const taskId = e.dataTransfer.getData('text/plain');
@@ -1040,30 +1015,11 @@ function exportData() {
 
             e.target.closest('.task-column').appendChild(taskElement);
 
-            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            tasks = tasks.map(task => {
-                if (task.id == taskId) {
-                    task.category = newCategory;
-                    logHistory(taskId, `Moved to ${newCategory}`);
-                }
-                return task;
-            });
-            localStorage.setItem('tasks', JSON.stringify(tasks));
-            backupData();
+            await db.ref(`tasks/${taskId}/category`).set(newCategory);
+            await logHistory(taskId, `Moved to ${newCategory}`);
         } catch (error) {
             console.error("Error dropping task:", error);
             showNotification('Error moving task.');
-        }
-    }
-
-    function loadTasks() {
-        try {
-            const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-            console.log("Loaded tasks:", tasks);
-            renderTasks();
-        } catch (error) {
-            console.error("Error in loadTasks:", error);
-            showNotification('Error loading tasks.');
         }
     }
 });
