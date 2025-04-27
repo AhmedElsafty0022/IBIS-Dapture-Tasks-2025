@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newReservationIdField.classList.add('hidden');
             if (category === 'checkout') {
                 checkOutTimeField.classList.remove('hidden');
-                document.getElementById('taskCheckOutTime').value = '13:00'; // Default to 1 PM
+                document.getElementById('taskCheckOutTime').value = '12:00'; // Default to 12 PM
             } else if (category === 'extensions') {
                 newReservationIdField.classList.remove('hidden');
             }
