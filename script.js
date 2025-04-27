@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM fully loaded and parsed");
 
-    // Firebase Configuration
+    // Firebase Configuration (Replace with your Firebase config)
     const firebaseConfig = {
         apiKey: "AIzaSyBeebZLl4vpeD-NI3b1ZASPllENBs6loOs",
         authDomain: "dapture-company-task-manager.firebaseapp.com",
@@ -14,24 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // Predefined Companies/TAs
-    const predefinedCompanies = [
-        'Booking.com',
-        'Agoda.com',
-        'Walkin',
-        'Mr. Shahid',
-        'Ms. Nancy',
-        'Mr. Francis'
-    ];
+	const db = firebase.database();
 
     // Global variables
     let editingTaskId = null;
     let touchStartX = 0;
     let touchEndX = 0;
     let selectedTasks = new Set();
-    let companies = [...predefinedCompanies];
 
     // DOM elements
     const addTaskBtn = document.getElementById('addTaskBtn');
@@ -61,21 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportTasksBtn = document.getElementById('exportTasksBtn');
     const importTasksBtn = document.getElementById('importTasksBtn');
     const importFileInput = document.getElementById('importFileInput');
-    const taskAssignedTo = document.getElementById('taskAssignedTo');
 
     // Load dark mode preference
     if (localStorage.getItem('darkMode') === 'enabled') {
         document.body.classList.add('dark');
     }
 
-    // Load companies from Firebase
-    db.ref('companies').on('value', (snapshot) => {
-        const customCompanies = snapshot.val() ? Object.values(snapshot.val()) : [];
-        companies = [...new Set([...predefinedCompanies, ...customCompanies])];
-        console.log('Loaded companies:', companies);
-    });
-
-    // Initial load of tasks
+    // Initial load of tasks (real-time listener)
     try {
         db.ref('tasks').on('value', (snapshot) => {
             const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -84,330 +65,341 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         db.ref('archive').on('value', () => renderArchive());
     } catch (error) {
-        console.error("Error loading tasks:", error);
+        console.error("Error loading tasks on page load:", error);
         showNotification('Error loading tasks. Please try importing a backup.');
     }
 
     // Dark Mode Toggle
-    darkModeToggle?.addEventListener('click', () => {
-        document.body.classList.toggle('dark');
-        localStorage.setItem('darkMode', document.body.classList.contains('dark') ? 'enabled' : 'disabled');
-        darkModeToggle.innerHTML = document.body.classList.contains('dark')
-            ? '<i class="fas fa-sun mr-1 sm:mr-2"></i>Toggle Light Mode'
-            : '<i class="fas fa-moon mr-1 sm:mr-2"></i>Toggle Dark Mode';
-    });
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark') ? 'enabled' : 'disabled');
+            darkModeToggle.innerHTML = document.body.classList.contains('dark')
+                ? '<i class="fas fa-sun mr-1 sm:mr-2"></i>Toggle Light Mode'
+                : '<i class="fas fa-moon mr-1 sm:mr-2"></i>Toggle Dark Mode';
+        });
+    }
 
     // Export Tasks
-    exportTasksBtn?.addEventListener('click', async () => {
-        try {
-            const tasksSnapshot = await db.ref('tasks').once('value');
-            const archiveSnapshot = await db.ref('archive').once('value');
-            const historySnapshot = await db.ref('history').once('value');
-            const companiesSnapshot = await db.ref('companies').once('value');
-            const data = {
-                tasks: tasksSnapshot.val() ? Object.values(tasksSnapshot.val()) : [],
-                archive: archiveSnapshot.val() ? Object.values(archiveSnapshot.val()) : [],
-                history: historySnapshot.val() ? Object.values(historySnapshot.val()) : [],
-                companies: companiesSnapshot.val() ? Object.values(companiesSnapshot.val()) : []
-            };
-            const dataStr = JSON.stringify(data, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            showNotification('Tasks exported successfully!');
-        } catch (error) {
-            console.error("Error exporting data:", error);
-            showNotification('Error exporting data.');
-        }
-    });
+    if (exportTasksBtn) {
+        exportTasksBtn.addEventListener('click', async () => {
+            try {
+                const tasksSnapshot = await db.ref('tasks').once('value');
+                const archiveSnapshot = await db.ref('archive').once('value');
+                const historySnapshot = await db.ref('history').once('value');
+                const data = {
+                    tasks: tasksSnapshot.val() ? Object.values(tasksSnapshot.val()) : [],
+                    archive: archiveSnapshot.val() ? Object.values(archiveSnapshot.val()) : [],
+                    history: historySnapshot.val() ? Object.values(historySnapshot.val()) : []
+                };
+                const dataStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showNotification('Tasks exported successfully!');
+            } catch (error) {
+                console.error("Error exporting data:", error);
+                showNotification('Error exporting data.');
+            }
+        });
+    }
 
     // Import Tasks
-    importTasksBtn?.addEventListener('click', () => importFileInput.click());
-    importFileInput?.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
-                if (data.tasks) {
-                    await db.ref('tasks').set(data.tasks.reduce((acc, task) => {
-                        acc[task.id] = task;
-                        return acc;
-                    }, {}));
+    if (importTasksBtn && importFileInput) {
+        importTasksBtn.addEventListener('click', () => {
+            importFileInput.click();
+        });
+        importFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.tasks) {
+                        const tasksRef = db.ref('tasks');
+                        await tasksRef.set(data.tasks.reduce((acc, task) => {
+                            acc[task.id] = task;
+                            return acc;
+                        }, {}));
+                    }
+                    if (data.archive) {
+                        const archiveRef = db.ref('archive');
+                        await archiveRef.set(data.archive.reduce((acc, task) => {
+                            acc[task.id] = task;
+                            return acc;
+                        }, {}));
+                    }
+                    if (data.history) {
+                        const historyRef = db.ref('history');
+                        await historyRef.set(data.history.reduce((acc, entry) => {
+                            acc[Date.now() + Math.random()] = entry;
+                            return acc;
+                        }, {}));
+                    }
+                    showNotification('Data imported successfully!');
+                } catch (error) {
+                    console.error("Error importing data:", error);
+                    showNotification('Error importing data. Please check the file format.');
                 }
-                if (data.archive) {
-                    await db.ref('archive').set(data.archive.reduce((acc, task) => {
-                        acc[task.id] = task;
-                        return acc;
-                    }, {}));
-                }
-                if (data.history) {
-                    await db.ref('history').set(data.history.reduce((acc, entry) => {
-                        acc[Date.now() + Math.random()] = entry;
-                        return acc;
-                    }, {}));
-                }
-                if (data.companies) {
-                    await db.ref('companies').set(data.companies.reduce((acc, company, index) => {
-                        acc[index] = company;
-                        return acc;
-                    }, {}));
-                }
-                showNotification('Data imported successfully!');
-            } catch (error) {
-                console.error("Error importing data:", error);
-                showNotification('Error importing data. Please check the file format.');
-            }
-        };
-        reader.readAsText(file);
-    });
-
-    // Autocomplete for Company To
-    let autocompleteTimeout;
-    const autocompleteContainer = document.createElement('div');
-    autocompleteContainer.classList.add('autocomplete-container');
-    taskAssignedTo.parentNode.insertBefore(autocompleteContainer, taskAssignedTo);
-    autocompleteContainer.appendChild(taskAssignedTo);
-
-    const autocompleteList = document.createElement('div');
-    autocompleteList.classList.add('autocomplete-list');
-    autocompleteContainer.appendChild(autocompleteList);
-
-    taskAssignedTo.addEventListener('input', () => {
-        clearTimeout(autocompleteTimeout);
-        autocompleteTimeout = setTimeout(() => {
-            const query = taskAssignedTo.value.trim().toLowerCase();
-            autocompleteList.innerHTML = '';
-            if (!query) return;
-            const matches = companies.filter(company => company.toLowerCase().includes(query));
-            if (matches.length === 0) return;
-            matches.forEach(company => {
-                const div = document.createElement('div');
-                div.textContent = company;
-                div.addEventListener('click', () => {
-                    taskAssignedTo.value = company;
-                    autocompleteList.innerHTML = '';
-                });
-                autocompleteList.appendChild(div);
-            });
-        }, 300);
-    });
-
-    taskAssignedTo.addEventListener('blur', () => {
-        setTimeout(() => {
-            autocompleteList.innerHTML = '';
-        }, 200);
-    });
+            };
+            reader.readAsText(file);
+        });
+    }
 
     // Open Modal for Adding Task
-    addTaskBtn?.addEventListener('click', () => {
-        console.log("Add Task button clicked");
-        openTaskModal('Add New Task', 'Add Task');
-    });
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', () => {
+            console.log("Add Task button clicked");
+            openTaskModal('Add New Task', 'Add Task');
+        });
+    } else {
+        console.error("Add Task button not found");
+    }
 
-    quickAddBtn?.addEventListener('click', () => {
-        console.log("Quick Add FAB clicked");
-        openTaskModal('Add New Task', 'Add Task');
-    });
+    if (quickAddBtn) {
+        quickAddBtn.addEventListener('click', () => {
+            console.log("Quick Add FAB clicked");
+            openTaskModal('Add New Task', 'Add Task');
+        });
+    } else {
+        console.error("Quick Add FAB not found");
+    }
 
     // Quick Add Buttons in Each Column
     quickAddButtons.forEach(button => {
-        button?.addEventListener('click', () => {
-            const category = button.getAttribute('data-category');
-            console.log(`Quick Add button clicked for category: ${category}`);
-            openTaskModal('Quick Add Task', 'Add Task', category);
-        });
+        if (button) {
+            button.addEventListener('click', () => {
+                const category = button.getAttribute('data-category');
+                console.log(`Quick Add button clicked for category: ${category}`);
+                openTaskModal('Quick Add Task', 'Add Task', category);
+            });
+        }
     });
 
     // Cancel Modal
-    cancelBtn?.addEventListener('click', () => {
-        console.log("Cancel button clicked");
-        taskModal.classList.add('hidden');
-        resetForm();
-    });
-
-    // Clear All Tasks
-    clearTasksBtn?.addEventListener('click', async () => {
-        console.log("Clear All button clicked");
-        if (confirm('Are you sure you want to clear all tasks, archives, history, and companies?')) {
-            try {
-                await db.ref('tasks').remove();
-                await db.ref('archive').remove();
-                await db.ref('history').remove();
-                await db.ref('companies').remove();
-                showNotification('All data cleared!');
-            } catch (error) {
-                console.error("Error clearing data:", error);
-                showNotification('Error clearing data.');
-            }
-        }
-    });
-
-    // Search Tasks
-    searchInput?.addEventListener('input', () => {
-        const query = searchInput.value.toLowerCase();
-        console.log("Search input changed:", query);
-        renderTasks(query);
-    });
-
-    // Sort Tasks
-    sortTasks?.addEventListener('change', () => {
-        console.log("Sort option changed:", sortTasks.value);
-        renderTasks(searchInput.value.toLowerCase());
-    });
-
-    // Filter by Priority
-    filterPriority?.addEventListener('change', () => {
-        console.log("Priority filter changed:", filterPriority.value);
-        renderTasks(searchInput.value.toLowerCase());
-    });
-
-    // Filter by Tag
-    tagFilter?.addEventListener('input', () => {
-        const query = searchInput.value.toLowerCase();
-        console.log("Tag filter changed:", tagFilter.value);
-        renderTasks(query);
-    });
-
-    // Bulk Archive
-    bulkArchiveBtn?.addEventListener('click', async () => {
-        if (selectedTasks.size === 0) {
-            alert('Please select tasks to archive.');
-            return;
-        }
-        try {
-            for (let taskId of selectedTasks) {
-                await archiveTask(taskId);
-            }
-            selectedTasks.clear();
-            showNotification('Selected tasks archived successfully!');
-        } catch (error) {
-            console.error("Error archiving tasks:", error);
-            showNotification('Error archiving tasks.');
-        }
-    });
-
-    // Bulk Delete
-    bulkDeleteBtn?.addEventListener('click', async () => {
-        if (selectedTasks.size === 0) {
-            alert('Please select tasks to delete.');
-            return;
-        }
-        try {
-            for (let taskId of selectedTasks) {
-                await deleteTask(taskId);
-            }
-            selectedTasks.clear();
-            showNotification('Selected tasks deleted successfully!');
-        } catch (error) {
-            console.error("Error deleting tasks:", error);
-            showNotification('Error deleting tasks.');
-        }
-    });
-
-    // View Archive
-    viewArchiveBtn?.addEventListener('click', () => {
-        console.log("View Archive button clicked");
-        archiveModal.classList.remove('hidden');
-        renderArchive();
-    });
-
-    closeArchiveBtn?.addEventListener('click', () => {
-        console.log("Close Archive button clicked");
-        archiveModal.classList.add('hidden');
-    });
-
-    // Close History Modal
-    closeHistoryBtn?.addEventListener('click', () => {
-        console.log("Close History button clicked");
-        historyModal.classList.add('hidden');
-    });
-
-    // Dynamically Show/Hide Fields Based on Category
-    taskCategory?.addEventListener('change', () => {
-        const category = taskCategory.value;
-        console.log("Category changed:", category);
-        checkOutTimeField.classList.add('hidden');
-        newReservationIdField.classList.add('hidden');
-        if (category === 'checkout') {
-            checkOutTimeField.classList.remove('hidden');
-            document.getElementById('taskCheckOutTime').value = '12:00';
-        } else if (category === 'extensions') {
-            newReservationIdField.classList.remove('hidden');
-        }
-    });
-
-    // Submit Task Form
-    submitBtn?.addEventListener('click', async (e) => {
-        console.log("Submit button clicked");
-        e.preventDefault();
-        const roomNumber = document.getElementById('taskRoomNumber').value.trim();
-        if (!roomNumber) {
-            alert('Room Number is required!');
-            return;
-        }
-        const newReservationId = document.getElementById('taskNewReservationId').value;
-        const category = document.getElementById('taskCategory').value;
-        const checkOutTime = document.getElementById('taskCheckOutTime').value;
-        const details = document.getElementById('taskDetails').value;
-        const dueDate = document.getElementById('taskDueDate').value;
-        const priority = document.getElementById('taskPriority').value;
-        const assignedTo = document.getElementById('taskAssignedTo').value.trim();
-        const status = document.getElementById('taskStatus').value;
-        const tags = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
-
-        // Save new company to Firebase if not already present
-        if (assignedTo && !companies.includes(assignedTo)) {
-            try {
-                await db.ref('companies').push(assignedTo);
-                companies.push(assignedTo);
-                console.log(`Added new company: ${assignedTo}`);
-            } catch (error) {
-                console.error("Error saving new company:", error);
-                showNotification('Error saving new company.');
-            }
-        }
-
-        const task = {
-            id: editingTaskId || Date.now(),
-            roomNumber,
-            newReservationId: category === 'extensions' ? newReservationId : '',
-            category,
-            checkOutTime: category === 'checkout' ? checkOutTime : '',
-            details,
-            dueDate,
-            priority,
-            assignedTo,
-            status,
-            tags,
-            createdAt: new Date().toISOString(),
-            comments: editingTaskId ? (await getTask(editingTaskId))?.comments || [] : [],
-            history: editingTaskId ? (await getTask(editingTaskId))?.history || [] : [],
-            attachments: editingTaskId ? (await getTask(editingTaskId))?.attachments || [] : []
-        };
-
-        try {
-            if (editingTaskId) {
-                await updateTask(task);
-                await logHistory(task.id, `Task updated`);
-                showNotification('Task updated successfully!');
-            } else {
-                await saveTask(task);
-                await logHistory(task.id, `Task created`);
-                showNotification('Task added successfully!');
-            }
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            console.log("Cancel button clicked");
             taskModal.classList.add('hidden');
             resetForm();
-        } catch (error) {
-            console.error("Error submitting task:", error);
-            showNotification('Error submitting task.');
-        }
-    });
+        });
+    } else {
+        console.error("Cancel button not found");
+    }
+
+    // Clear All Tasks
+    if (clearTasksBtn) {
+        clearTasksBtn.addEventListener('click', async () => {
+            console.log("Clear All button clicked");
+            if (confirm('Are you sure you want to clear all tasks? This will delete all tasks, archived tasks, and history.')) {
+                try {
+                    await db.ref('tasks').remove();
+                    await db.ref('archive').remove();
+                    await db.ref('history').remove();
+                    showNotification('All tasks cleared!');
+                } catch (error) {
+                    console.error("Error clearing tasks:", error);
+                    showNotification('Error clearing tasks.');
+                }
+            }
+        });
+    } else {
+        console.error("Clear Tasks button not found");
+    }
+
+    // Search Tasks
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            console.log("Search input changed:", query);
+            renderTasks(query);
+        });
+    } else {
+        console.error("Search input not found");
+    }
+
+    // Sort Tasks
+    if (sortTasks) {
+        sortTasks.addEventListener('change', () => {
+            console.log("Sort option changed:", sortTasks.value);
+            renderTasks(searchInput.value.toLowerCase());
+        });
+    } else {
+        console.error("Sort dropdown not found");
+    }
+
+    // Filter by Priority
+    if (filterPriority) {
+        filterPriority.addEventListener('change', () => {
+            console.log("Priority filter changed:", filterPriority.value);
+            renderTasks(searchInput.value.toLowerCase());
+        });
+    } else {
+        console.error("Priority filter dropdown not found");
+    }
+
+    // Filter by Tag
+    if (tagFilter) {
+        tagFilter.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            console.log("Tag filter changed:", tagFilter.value);
+            renderTasks(query);
+        });
+    } else {
+        console.error("Tag filter input not found");
+    }
+
+    // Bulk Archive
+    if (bulkArchiveBtn) {
+        bulkArchiveBtn.addEventListener('click', async () => {
+            if (selectedTasks.size === 0) {
+                alert('Please select tasks to archive.');
+                return;
+            }
+            try {
+                for (let taskId of selectedTasks) {
+                    await archiveTask(taskId);
+                }
+                selectedTasks.clear();
+                showNotification('Selected tasks archived successfully!');
+            } catch (error) {
+                console.error("Error archiving tasks:", error);
+                showNotification('Error archiving tasks.');
+            }
+        });
+    }
+
+    // Bulk Delete
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', async () => {
+            if (selectedTasks.size === 0) {
+                alert('Please select tasks to delete.');
+                return;
+            }
+            try {
+                for (let taskId of selectedTasks) {
+                    await deleteTask(taskId);
+                }
+                selectedTasks.clear();
+                showNotification('Selected tasks deleted successfully!');
+            } catch (error) {
+                console.error("Error deleting tasks:", error);
+                showNotification('Error deleting tasks.');
+            }
+        });
+    }
+
+    // View Archive
+    if (viewArchiveBtn) {
+        viewArchiveBtn.addEventListener('click', () => {
+            console.log("View Archive button clicked");
+            archiveModal.classList.remove('hidden');
+            renderArchive();
+        });
+    } else {
+        console.error("View Archive button not found");
+    }
+
+    if (closeArchiveBtn) {
+        closeArchiveBtn.addEventListener('click', () => {
+            console.log("Close Archive button clicked");
+            archiveModal.classList.add('hidden');
+        });
+    } else {
+        console.error("Close Archive button not found");
+    }
+
+    // Close History Modal
+    if (closeHistoryBtn) {
+        closeHistoryBtn.addEventListener('click', () => {
+            console.log("Close History button clicked");
+            historyModal.classList.add('hidden');
+        });
+    } else {
+        console.error("Close History button not found");
+    }
+
+    // Dynamically Show/Hide Fields Based on Category
+    if (taskCategory) {
+        taskCategory.addEventListener('change', () => {
+            const category = taskCategory.value;
+            console.log("Category changed:", category);
+            checkOutTimeField.classList.add('hidden');
+            newReservationIdField.classList.add('hidden');
+            if (category === 'checkout') {
+                checkOutTimeField.classList.remove('hidden');
+                document.getElementById('taskCheckOutTime').value = '13:00'; // Default to 1 PM
+            } else if (category === 'extensions') {
+                newReservationIdField.classList.remove('hidden');
+            }
+        });
+    } else {
+        console.error("Task Category dropdown not found");
+    }
+
+    // Submit Task Form
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async (e) => {
+            console.log("Submit button clicked");
+            e.preventDefault();
+            const roomNumber = document.getElementById('taskRoomNumber').value.trim();
+            if (!roomNumber) {
+                alert('Room Number is required!');
+                return;
+            }
+            const newReservationId = document.getElementById('taskNewReservationId').value;
+            const category = document.getElementById('taskCategory').value;
+            const checkOutTime = document.getElementById('taskCheckOutTime').value;
+            const details = document.getElementById('taskDetails').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const priority = document.getElementById('taskPriority').value;
+            const assignedTo = document.getElementById('taskAssignedTo').value;
+            const status = document.getElementById('taskStatus').value;
+            const tags = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+
+            const task = {
+                id: editingTaskId || Date.now(),
+                roomNumber,
+                newReservationId: category === 'extensions' ? newReservationId : '',
+                category,
+                checkOutTime: category === 'checkout' ? checkOutTime : '',
+                details,
+                dueDate,
+                priority,
+                assignedTo,
+                status,
+                tags,
+                createdAt: new Date().toISOString(),
+                comments: editingTaskId ? (await getTask(editingTaskId))?.comments || [] : [],
+                history: editingTaskId ? (await getTask(editingTaskId))?.history || [] : [],
+                attachments: editingTaskId ? (await getTask(editingTaskId))?.attachments || [] : []
+            };
+
+            try {
+                if (editingTaskId) {
+                    await updateTask(task);
+                    await logHistory(task.id, `Task updated affairs`);
+                    showNotification('Task updated successfully!');
+                } else {
+                    await saveTask(task);
+                    await logHistory(task.id, `Task created by user`);
+                    showNotification('Task added successfully!');
+                }
+                taskModal.classList.add('hidden');
+                resetForm();
+            } catch (error) {
+                console.error("Error submitting task:", error);
+                showNotification('Error submitting task.');
+            }
+        });
+    } else {
+        console.error("Submit button not found");
+    }
 
     function openTaskModal(title, btnText, presetCategory = null) {
         try {
@@ -423,7 +415,6 @@ document.addEventListener('DOMContentLoaded', () => {
             taskModal.classList.remove('hidden');
         } catch (error) {
             console.error("Error opening task modal:", error);
-            showNotification('Error opening modal.');
         }
     }
 
@@ -437,13 +428,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     input.selectedIndex = 0;
                 }
             });
-            document.getElementById('taskDueDate').value = new Date().toISOString().split('T')[0];
+            // Set default due date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('taskDueDate').value = today;
             checkOutTimeField.classList.add('hidden');
             newReservationIdField.classList.add('hidden');
-            autocompleteList.innerHTML = '';
         } catch (error) {
             console.error("Error resetting form:", error);
-            showNotification('Error resetting form.');
         }
     }
 
@@ -466,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.ref(`tasks/${task.id}`).set(task);
         } catch (error) {
             console.error("Error saving task:", error);
-            throw error;
+            showNotification('Error saving task.');
         }
     }
 
@@ -475,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.ref(`tasks/${updatedTask.id}`).set(updatedTask);
         } catch (error) {
             console.error("Error updating task:", error);
-            throw error;
+            showNotification('Error updating task.');
         }
     }
 
@@ -501,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error archiving task:", error);
-            throw error;
+            showNotification('Error archiving task.');
         }
     }
 
@@ -517,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error unarchiving task:", error);
-            throw error;
+            showNotification('Error unarchiving task.');
         }
     }
 
@@ -528,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showNotification('Task deleted successfully!');
         } catch (error) {
             console.error("Error deleting task:", error);
-            throw error;
+            showNotification('Error deleting task.');
         }
     }
 
@@ -543,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error duplicating task:", error);
-            throw error;
+            showNotification('Error duplicating task.');
         }
     }
 
@@ -557,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.ref('history').push(historyEntry);
         } catch (error) {
             console.error("Error logging history:", error);
-            throw error;
+            showNotification('Error logging history.');
         }
     }
 
@@ -575,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error adding comment:", error);
-            throw error;
+            showNotification('Error adding comment.');
         }
     }
 
@@ -593,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error adding attachment:", error);
-            throw error;
+            showNotification('Error adding attachment.');
         }
     }
 
@@ -608,7 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Error toggling task status:", error);
-            throw error;
+            showNotification('Error toggling task status.');
         }
     }
 
@@ -714,7 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 taskElement.classList.add('overdue');
             }
 
-            // Format room number
+            // Format room number as "R# 502"
             const formattedRoomNumber = `R# ${task.roomNumber}`;
 
             // Render comments
@@ -768,39 +759,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p class="text-sm ${task.status === 'Completed' ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-600 dark:text-gray-400'}">${task.details || 'No details'}</p>
                         ${task.dueDate ? `<p class="text-xs text-gray-500 dark:text-gray-400">Due: ${task.dueDate}</p>` : ''}
                         <p class="text-xs text-gray-400 dark:text-gray-500">Created: ${new Date(task.createdAt).toLocaleDateString()}</p>
-                        ${task.assignedTo ? `<p class="text-xs text-gray-500 dark:text-gray-400">Company or TA: ${task.assignedTo}</p>` : ''}
+                        ${task.assignedTo ? `<p class="text-xs text-gray-500 dark:text-gray-400">Company or TA:  ${task.assignedTo}</p>` : ''}
                         <p class="status-${task.status.toLowerCase().replace(' ', '-')}" style="display: inline-block;">${task.status}</p>
                         ${tagsHtml}
                         ${commentsHtml}
                         ${attachmentsHtml}
                     </div>
                     <div class="task-actions">
-                        <button class="comment-btn text-green-500 hover:text-green-700" data-id="${task.id}" data-tooltip>
+                        <button class="comment-btn text-green-500 hover:text-green-700" data-id="${task.id}">
                             <i class="fas fa-comment"></i>
                         </button>
-                        <button class="attach-btn text-orange-500 hover:text-orange-700" data-id="${task.id}" data-tooltip>
+                        <button class="attach-btn text-orange-500 hover:text-orange-700" data-id="${task.id}">
                             <i class="fas fa-paperclip"></i>
                         </button>
-                        <button class="history-btn text-gray-500 hover:text-gray-700" data-id="${task.id}" data-tooltip>
+                        <button class="history-btn text-gray-500 hover:text-gray-700" data-id="${task.id}">
                             <i class="fas fa-history"></i>
                         </button>
-                        <button class="edit-btn text-blue-500 hover:text-blue-700" data-id="${task.id}" data-tooltip>
+                        <button class="edit-btn text-blue-500 hover:text-blue-700" data-id="${task.id}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="duplicate-btn text-teal-500 hover:text-teal-700" data-id="${task.id}" data-tooltip>
+                        <button class="duplicate-btn text-teal-500 hover:text-teal-700" data-id="${task.id}">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button class="archive-btn text-purple-500 hover:text-purple-700" data-id="${task.id}" data-tooltip>
+                        <button class="archive-btn text-purple-500 hover:text-purple-700" data-id="${task.id}">
                             <i class="fas fa-archive"></i>
                         </button>
-                        <button class="delete-btn text-red-500 hover:text-red-700" data-id="${task.id}" data-tooltip>
+                        <button class="delete-btn text-red-500 hover:text-red-700" data-id="${task.id}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             `;
 
-            // Click to toggle completion
+            // Click to toggle completion (excluding buttons and checkbox)
             taskElement.addEventListener('click', (e) => {
                 if (!e.target.closest('button') && !e.target.classList.contains('task-checkbox')) {
                     console.log(`Task card clicked for task ${task.id}`);
@@ -860,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 taskElement.classList.remove('dragging');
             });
 
-            // Swipe to Archive
+            // Swipe to Archive (Touch Support)
             taskElement.addEventListener('touchstart', (e) => {
                 touchStartX = e.changedTouches[0].screenX;
             });
@@ -875,7 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             taskElement.addEventListener('touchend', () => {
                 const diffX = touchStartX - touchEndX;
-                if (diffX > 100) {
+                if (diffX > 100) { // Swipe threshold
                     taskElement.classList.add('swiped');
                     setTimeout(() => archiveTask(task.id), 300);
                 } else {
@@ -994,6 +985,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn.textContent = 'Update Task';
                 editingTaskId = taskId;
 
+                // Show/hide fields based on category
                 checkOutTimeField.classList.add('hidden');
                 newReservationIdField.classList.add('hidden');
                 if (task.category === 'checkout') {
