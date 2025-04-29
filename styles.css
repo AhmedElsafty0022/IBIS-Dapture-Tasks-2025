@@ -1,20 +1,23 @@
-/* Modern Color Palette */
+/* Modern Professional Color Palette */
 :root {
-    --primary: #10b981; /* Emerald green for primary actions */
-    --secondary: #6b7280; /* Neutral gray for text and borders */
-    --accent: #8b5cf6; /* Vibrant purple for archive/swipe */
-    --bg-light: #ffffff; /* Clean white background */
-    --bg-dark: #1f2937; /* Dark mode background */
-    --text-light: #111827; /* Dark text for light mode */
-    --text-dark: #f9fafb; /* Light text for dark mode */
-    --border-light: #e5e7eb; /* Subtle border for light mode */
-    --border-dark: #4b5563; /* Subtle border for dark mode */
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --primary: #0d9488; /* Rich teal for primary actions */
+    --secondary: #6b7280; /* Neutral gray for text */
+    --accent: #7c3aed; /* Deep violet for archive/swipe */
+    --bg-light: #f8fafc; /* Soft off-white background */
+    --bg-dark: #1e293b; /* Dark slate for dark mode */
+    --text-light: #0f172a; /* Deep slate for light mode text */
+    --text-dark: #f1f5f9; /* Soft white for dark mode text */
+    --border-light: #e2e8f0; /* Lighter gray border for a softer look */
+    --border-dark: #475569; /* Darker border for dark mode */
+    --shadow: 0 4px 8px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
+    --gradient-bg: linear-gradient(135deg, #f9fafb, #e5e7eb);
 }
 
 /* Global Font */
 body {
     font-family: 'Inter', sans-serif;
+    background: var(--gradient-bg);
+    position: relative;
 }
 
 /* Enhanced Task Card Styles */
@@ -27,22 +30,22 @@ body {
     position: relative;
     overflow: hidden;
     border: 1px solid var(--border-light);
-    min-height: 80px; /* Compact height when collapsed */
+    min-height: 80px;
 }
 
 .task-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    background: linear-gradient(to bottom, #ffffff, #f8fafc);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    background: linear-gradient(to bottom, #ffffff, #f1f5f9);
 }
 
 .task-card.expanded {
-    min-height: 240px; /* Larger height when expanded */
+    min-height: 240px;
 }
 
 /* Priority Indicators */
 .task-card.priority-high {
-    border-left: 4px solid #ef4444;
+    border-left: 4px solid #dc2626;
     background: #fef2f2;
 }
 
@@ -64,7 +67,6 @@ body {
     border-radius: 9999px;
     font-size: 12px;
     font-weight: 500;
-    transition: background 0.2s ease;
 }
 
 .task-card .status-in-progress {
@@ -74,7 +76,6 @@ body {
     border-radius: 9999px;
     font-size: 12px;
     font-weight: 500;
-    transition: background 0.2s ease;
 }
 
 .task-card .status-completed {
@@ -84,14 +85,13 @@ body {
     border-radius: 9999px;
     font-size: 12px;
     font-weight: 500;
-    transition: background 0.2s ease;
 }
 
 .task-card .status-pending:hover { background: #fde68a; }
 .task-card .status-in-progress:hover { background: #bae6fd; }
 .task-card .status-completed:hover { background: #a7f3d0; }
 
-/* Essential Content (Always Visible) */
+/* Essential Content */
 .task-essential {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -120,12 +120,12 @@ body {
     gap: 4px;
 }
 
-/* Expandable Content (Hidden by Default) */
+/* Expandable Content */
 .task-expandable {
     display: none;
     padding: 16px;
     border-top: 1px solid var(--border-light);
-    background: #f8fafc;
+    background: #f1f5f9;
     animation: slideDown 0.3s ease;
 }
 
@@ -135,7 +135,7 @@ body {
 
 .dark .task-expandable {
     border-top: 1px solid var(--border-dark);
-    background: #374151;
+    background: #334155;
 }
 
 /* Task Checkbox */
@@ -269,7 +269,7 @@ body {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-	margin-right: 13px;
+    margin-right: 12px;
 }
 
 .task-actions {
@@ -282,7 +282,7 @@ body {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     padding: 8px;
     border-radius: 8px;
     transition: all 0.2s ease;
@@ -292,17 +292,16 @@ body {
 .task-actions button:hover::after {
     content: attr(data-tooltip);
     position: absolute;
-    top: -30px;
+    top: -28px;
     right: 50%;
     transform: translateX(50%);
-    background: #1f2937;
+    background: #1e293b;
     color: #fff;
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 12px;
     white-space: nowrap;
     z-index: 10;
-	
 }
 
 .task-actions .comment-btn { color: #22c55e; }
@@ -331,7 +330,7 @@ body {
     border: none;
     cursor: pointer;
     color: var(--secondary);
-    font-size: 16px;
+    font-size: 14px;
     padding: 8px;
     border-radius: 8px;
     transition: all 0.2s ease;
@@ -356,7 +355,7 @@ body {
 
 /* Completed Tasks */
 .task-card.completed {
-    opacity: 0.9;
+    opacity: 0.85;
     background: #f3f4f6;
     border: 1px solid #d1d5db;
 }
@@ -364,10 +363,10 @@ body {
 /* Swipe to Archive */
 .swipe-background {
     position: absolute;
-    right: -56px;
+    right: -50px;
     top: 0;
     height: 100%;
-    width: 56px;
+    width: 50px;
     background: var(--accent);
     color: #fff;
     display: flex;
@@ -437,12 +436,12 @@ body {
 /* Dark Mode Styles */
 .dark .task-card {
     background: var(--bg-dark);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
     border: 1px solid var(--border-dark);
 }
 
 .dark .task-card:hover {
-    background: linear-gradient(to bottom, #1f2937, #111827);
+    background: linear-gradient(to bottom, #1e293b, #111827);
 }
 
 .dark .task-card.priority-high {
@@ -503,11 +502,6 @@ body {
     color: #9ca3af;
 }
 
-
-.edit-attachment-btn {
-    margin-left: 10px; /* Adjust this value to move the button further right */
-}
-
 .dark .autocomplete-list {
     background: var(--bg-dark);
     border: 1px solid var(--border-dark);
@@ -519,4 +513,8 @@ body {
 
 .dark .autocomplete-list div:hover {
     background: #374151;
+}
+
+.edit-attachment-btn {
+    margin-left: 10px;
 }
