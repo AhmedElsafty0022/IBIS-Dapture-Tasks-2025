@@ -269,21 +269,23 @@ body {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    margin-right: 12px;
+    margin-left: 35px;
 }
 
 .task-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    margin-right: 35px;
+    margin-left: 20px;
 }
 
 .task-actions button {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 14px;
-    padding: 8px;
+    font-size: 12px; /* Slightly smaller icons */
+    padding: 6px;
     border-radius: 8px;
     transition: all 0.2s ease;
     position: relative;
@@ -292,9 +294,9 @@ body {
 .task-actions button:hover::after {
     content: attr(data-tooltip);
     position: absolute;
-    top: -28px;
-    right: 50%;
-    transform: translateX(50%);
+    bottom: 100%; /* Position above the button */
+    left: 50%;
+    transform: translateX(-50%);
     background: #1e293b;
     color: #fff;
     padding: 4px 8px;
@@ -302,6 +304,12 @@ body {
     font-size: 12px;
     white-space: nowrap;
     z-index: 10;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+.task-actions button::after {
+    opacity: 0;
 }
 
 .task-actions .comment-btn { color: #22c55e; }
@@ -517,4 +525,197 @@ body {
 
 .edit-attachment-btn {
     margin-left: 10px;
+}
+
+/* History Styling */
+.history-group h3 {
+    color: var(--text-light);
+    margin-bottom: 8px;
+}
+
+.history-item.history-status { border-left: 3px solid #22c55e; }
+.history-item.history-comment { border-left: 3px solid #3b82f6; }
+.history-item.history-attachment { border-left: 3px solid #f59e0b; }
+.history-item.history-general { border-left: 3px solid #6b7280; }
+
+
+
+@media (max-width: 600px) {
+    #archiveModal {
+        width: 100%;
+        margin: 0;
+        padding: 16px;
+        border-radius: 0;
+    }
+}
+
+.dark #archiveModal {
+    background: var(--bg-dark);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+#archiveModal h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-light);
+    margin-bottom: 0;
+}
+
+.dark #archiveModal h2 {
+    color: var(--text-dark);
+}
+
+#archiveList {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Archive Task Card */
+.archive-task-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-light);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dark .archive-task-card {
+    background: #2d3748;
+    border: 1px solid var(--border-dark);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.archive-task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    background: #f9fafb;
+}
+
+.dark .archive-task-card:hover {
+    background: #374151;
+}
+
+.archive-task-content {
+    flex: 1;
+    min-width: 0;
+    padding-right: 20px;
+}
+
+.archive-task-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.archive-task-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dark .archive-task-title {
+    color: var(--text-dark);
+}
+
+.archive-task-meta {
+    font-size: 14px;
+    color: var(--secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.archive-task-meta span {
+    font-weight: 500;
+}
+
+.archive-task-details p {
+    font-size: 15px;
+    color: #4b5563;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dark .archive-task-details p {
+    color: #d1d5db;
+}
+
+.archive-timestamp {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.archive-task-actions {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.archive-task-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.archive-task-actions button:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+.archive-task-actions button::after {
+    opacity: 0;
+}
+
+.archive-task-actions .unarchive-btn {
+    color: var(--primary);
+}
+
+.archive-task-actions .unarchive-btn:hover {
+    background: #ccfbf1;
+}
+
+.archive-task-actions .delete-btn {
+    color: #ef4444;
+}
+
+.archive-task-actions .delete-btn:hover {
+    background: #fef2f2;
 }

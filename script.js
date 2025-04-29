@@ -430,8 +430,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (editingTaskId) {
+                const oldTask = await getTask(editingTaskId);
+                const details = {};
+                if (oldTask.status !== task.status) {
+                    details.oldStatus = oldTask.status;
+                    details.newStatus = task.status;
+                }
+                if (oldTask.priority !== task.priority) {
+                    details.oldPriority = oldTask.priority;
+                    details.newPriority = task.priority;
+                }
                 await updateTask(task);
-                await logHistory(task.id, `Task updated`);
+                if (Object.keys(details).length > 0) {
+                    await logHistory(task.id, `Task updated`, details);
+                }
                 showNotification('Task updated successfully!');
             } else {
                 await saveTask(task);
@@ -610,18 +622,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function logHistory(taskId, action) {
+    async function logHistory(taskId, action, details = {}, user = 'System') {
         try {
             const historyEntry = {
                 taskId,
                 action,
-                timestamp: new Date().toISOString()
+                details,
+                user,
+                timestamp: new Date().toISOString(),
+                type: categorizeAction(action)
             };
             await db.ref('history').push(historyEntry);
         } catch (error) {
             console.error("Error logging history:", error);
             throw error;
         }
+    }
+
+    function categorizeAction(action) {
+        if (action.includes('status')) return 'status';
+        if (action.includes('comment')) return 'comment';
+        if (action.includes('attachment')) return 'attachment';
+        return 'general';
     }
 
     async function addComment(taskId, comment) {
@@ -633,7 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: comment, timestamp: new Date().toISOString() }
                 ];
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
-                await logHistory(taskId, `Comment added: ${comment}`);
+                await logHistory(taskId, `Comment added: ${comment}`, { comment });
                 showNotification('Comment added successfully!');
                 renderTasks(); // Re-render to update comment section
             }
@@ -653,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     timestamp: new Date().toISOString()
                 };
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
-                await logHistory(taskId, `Comment edited: ${newText}`);
+                await logHistory(taskId, `Comment edited: ${newText}`, { comment: newText });
                 showNotification('Comment updated successfully!');
                 renderTasks(); // Re-render to update comment section
             }
@@ -672,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     { text: attachment, timestamp: new Date().toISOString() }
                 ];
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
-                await logHistory(taskId, `Attachment added: ${attachment}`);
+                await logHistory(taskId, `Attachment added: ${attachment}`, { attachment });
                 showNotification('Attachment added successfully!');
                 renderTasks(); // Re-render to show attachments
             }
@@ -692,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     timestamp: new Date().toISOString()
                 };
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
-                await logHistory(taskId, `Attachment edited: ${newText}`);
+                await logHistory(taskId, `Attachment edited: ${newText}`, { attachment: newText });
                 showNotification('Attachment updated successfully!');
                 renderTasks(); // Re-render to update attachment section
             }
@@ -708,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (task) {
                 const newStatus = task.status === 'Completed' ? 'Pending' : 'Completed';
                 await db.ref(`tasks/${taskId}/status`).set(newStatus);
-                await logHistory(taskId, `Task status changed to ${newStatus}`);
+                await logHistory(taskId, `Task status changed`, { oldStatus: task.status, newStatus });
                 showNotification(`Task marked as ${newStatus}!`);
                 renderTasks(); // Re-render to update checkbox
             }
@@ -834,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const detailsText = task.details || 'No details provided';
             const dueText = task.dueDate ? `Due: ${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}` : '';
             const assignedToText = task.assignedTo && task.category !== 'handover' && task.category !== 'guestrequests' ? task.assignedTo : 'Unassigned';
-            const categorySpecific = task.newReservationId ? `Resv: ${task.newReservationId}` : (task.checkOutTime ? `Out: ${task.checkOutTime}` : '');
+            const categorySpecific =	task.newReservationId ? `Resv: ${task.newReservationId}` : (task.checkOutTime ? `Out: ${task.checkOutTime}` : '');
 
             // Counts for comments, attachments, and tags
             const commentCount = task.comments ? task.comments.length : 0;
@@ -919,8 +941,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="task-actions-container">
                     <div class="task-actions">
-                        <button class="comment-btn" data-id="${task.id}" data-tooltip="Add/View Comment"><i class="fas fa-comment"></i></button>
-                        <button class="attach-btn" data-id="${task.id}" data-tooltip="Add Attachment"><i class="fas fa-paperclip"></i></button>
+                        <button class="comment-btn" data-id="${task.id}" data-tooltip="Comment"><i class="fas fa-comment"></i></button>
+                        <button class="attach-btn" data-id="${task.id}" data-tooltip="Attach File"><i class="fas fa-paperclip"></i></button>
                         <button class="history-btn" data-id="${task.id}" data-tooltip="View History"><i class="fas fa-history"></i></button>
                         <button class="edit-btn" data-id="${task.id}" data-tooltip="Edit Task"><i class="fas fa-edit"></i></button>
                         <button class="duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate Task"><i class="fas fa-copy"></i></button>
@@ -1075,22 +1097,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const snapshot = await db.ref('archive').once('value');
             const archive = snapshot.val() ? Object.values(snapshot.val()) : [];
             const archiveList = document.getElementById('archiveList');
-            archiveList.innerHTML = archive.length === 0 ? '<p>No archived tasks.</p>' : '';
+            archiveList.innerHTML = archive.length === 0 ? '<p class="text-gray-500 dark:text-gray-400 italic">No archived tasks.</p>' : '';
+
+            // Sort by archivedAt in descending order (most recent first)
+            archive.sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt));
 
             archive.forEach(task => {
                 const taskElement = document.createElement('div');
-                taskElement.classList.add('task-card', `priority-${task.priority.toLowerCase()}`);
+                taskElement.classList.add('archive-task-card', `priority-${task.priority.toLowerCase()}`);
                 taskElement.innerHTML = `
-                    <div class="task-essential">
-                        <div class="task-essential-header">
-                            <div class="task-title">R#${task.roomNumber}</div>
-                            <div class="task-meta">${task.details || 'No details'}</div>
+                    <div class="archive-task-content">
+                        <div class="archive-task-header">
+                            <div class="archive-task-title">R#${task.roomNumber}</div>
+                            <div class="archive-task-meta">
+                                <span>Archived from: <span class="capitalize">${task.category}</span></span>
+                            </div>
                         </div>
-                        <div class="task-essential-meta">
-                            <span>Archived: ${new Date(task.archivedAt).toLocaleString()}</span>
+                        <div class="archive-task-details">
+                            <p>${task.details || '<span class="italic text-gray-500 dark:text-gray-400">No details provided</span>'}</p>
+                            <p class="archive-timestamp">Archived: ${new Date(task.archivedAt).toLocaleString()}</p>
                         </div>
                     </div>
-                    <div class="task-actions">
+                    <div class="archive-task-actions">
                         <button class="unarchive-btn" data-id="${task.id}" data-tooltip="Unarchive Task"><i class="fas fa-undo"></i></button>
                         <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete Task"><i class="fas fa-trash"></i></button>
                     </div>
@@ -1115,23 +1143,64 @@ document.addEventListener('DOMContentLoaded', () => {
     async function renderHistory(taskId) {
         try {
             const snapshot = await db.ref('history').once('value');
-            const history = snapshot.val() ? Object.values(snapshot.val()).filter(entry => entry.taskId === taskId) : [];
+            const history = snapshot.val() 
+                ? Object.values(snapshot.val()).filter(entry => entry.taskId === taskId) 
+                : [];
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = history.length === 0 ? '<p>No history for this task.</p>' : '';
 
-            history.forEach(entry => {
-                const historyItem = document.createElement('div');
-                historyItem.classList.add('history-item', 'p-2', 'border-b', 'border-gray-200', 'dark:border-gray-600');
-                historyItem.innerHTML = `
-                    <p>${entry.action}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(entry.timestamp).toLocaleString()}</p>
-                `;
-                historyList.appendChild(historyItem);
-            });
+            // Group history by type
+            const groupedHistory = history.reduce((acc, entry) => {
+                acc[entry.type] = acc[entry.type] || [];
+                acc[entry.type].push(entry);
+                return acc;
+            }, {});
+
+            // Render grouped history
+            for (const [type, entries] of Object.entries(groupedHistory)) {
+                const groupDiv = document.createElement('div');
+                groupDiv.classList.add('history-group', 'mb-4');
+                groupDiv.innerHTML = `<h3 class="text-lg font-semibold capitalize">${type} Events</h3>`;
+
+                entries.forEach(entry => {
+                    const historyItem = document.createElement('div');
+                    historyItem.classList.add('history-item', 'p-2', 'border-b', 'border-gray-200', 'dark:border-gray-600', `history-${type}`);
+                    const icon = getHistoryIcon(type);
+                    let detailsHtml = '';
+                    if (entry.details && Object.keys(entry.details).length > 0) {
+                        detailsHtml = `<p class="text-sm text-gray-600 dark:text-gray-300">${formatDetails(entry.details)}</p>`;
+                    }
+                    historyItem.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="${icon} mr-2"></i>
+                            <div>
+                                <p>${entry.action}</p>
+                                ${detailsHtml}
+                                <p class="text-sm text-gray-500 dark:text-gray-400">By ${entry.user} on ${new Date(entry.timestamp).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    `;
+                    groupDiv.appendChild(historyItem);
+                });
+                historyList.appendChild(groupDiv);
+            }
         } catch (error) {
             console.error("Error rendering history:", error);
             showNotification('Error rendering history.');
         }
+    }
+
+    function getHistoryIcon(type) {
+        switch (type) {
+            case 'status': return 'fas fa-check-circle';
+            case 'comment': return 'fas fa-comment';
+            case 'attachment': return 'fas fa-paperclip';
+            default: return 'fas fa-info-circle';
+        }
+    }
+
+    function formatDetails(details) {
+        return Object.entries(details).map(([key, value]) => `${key}: ${value}`).join(', ');
     }
 
     // Drag and Drop for Moving Tasks
