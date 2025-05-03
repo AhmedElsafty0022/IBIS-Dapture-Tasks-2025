@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeArchiveBtn = document.getElementById('closeArchiveBtn');
     const historyModal = document.getElementById('historyModal');
     const closeHistoryBtn = document.getElementById('closeHistoryBtn');
-    const notification = document.getElementById('notification');
     const taskCategory = document.getElementById('taskCategory');
     const checkOutTimeField = document.getElementById('checkOutTimeField');
     const newReservationIdField = document.getElementById('newReservationIdField');
@@ -63,11 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const importTasksBtn = document.getElementById('importTasksBtn');
     const importFileInput = document.getElementById('importFileInput');
     const taskAssignedTo = document.getElementById('taskAssignedTo');
-
-    // Request Notification Permission
-    if (Notification.permission !== 'granted') {
-        Notification.requestPermission();
-    }
 
     // Load dark mode preference
     if (localStorage.getItem('darkMode') === 'enabled') {
@@ -86,20 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
         db.ref('tasks').on('value', (snapshot) => {
             const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
             renderTasks();
-            checkReminders(tasks);
         });
         db.ref('archive').on('value', () => renderArchive());
-        // Listen for history changes for notifications
-        db.ref('history').on('child_added', (snapshot) => {
-            const historyEntry = snapshot.val();
-            showDesktopNotification(`${historyEntry.action} by ${historyEntry.user}`, {
-                body: `Task: R#${historyEntry.taskId}\n${formatDetails(historyEntry.details)}`,
-                icon: 'https://via.placeholder.com/64'
-            });
-        });
     } catch (error) {
         console.error("Error loading tasks:", error);
-        showNotification('Error loading tasks. Please try importing a backup.');
+        alert('Error loading tasks. Please try importing a backup.');
     }
 
     // Initialize SortableJS for each task column
@@ -116,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     task.category = newCategory;
                     await updateTask(task);
                     await logHistory(taskId, `Task moved to ${newCategory}`);
-                    showNotification('Task moved successfully!');
                 }
                 // Reorder tasks within the same column
                 const tasksInColumn = Array.from(evt.to.children).map(child => child.dataset.id);
@@ -155,11 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
             a.download = `task_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            showNotification('Tasks exported successfully!');
-            showDesktopNotification('Tasks Exported', { body: 'Backup file downloaded successfully.' });
+            alert('Tasks exported successfully!');
         } catch (error) {
             console.error("Error exporting data:", error);
-            showNotification('Error exporting data.');
+            alert('Error exporting data.');
         }
     });
 
@@ -204,11 +187,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         return acc;
                     }, {}));
                 }
-                showNotification('Data imported successfully!');
-                showDesktopNotification('Data Imported', { body: 'Tasks and related data imported successfully.' });
+                alert('Data imported successfully!');
             } catch (error) {
                 console.error("Error importing data:", error);
-                showNotification('Error importing data. Please check the file format.');
+                alert('Error importing data. Please check the file format.');
             }
         };
         reader.readAsText(file);
@@ -307,11 +289,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await db.ref('archive').remove();
                 await db.ref('history').remove();
                 await db.ref('companies').remove();
-                showNotification('All data cleared!');
-                showDesktopNotification('All Data Cleared', { body: 'All tasks, archives, history, and companies removed.' });
+                alert('All data cleared!');
             } catch (error) {
                 console.error("Error clearing data:", error);
-                showNotification('Error clearing data.');
+                alert('Error clearing data.');
             }
         }
     });
@@ -353,11 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await archiveTask(taskId);
             }
             selectedTasks.clear();
-            showNotification('Selected tasks archived successfully!');
-            showDesktopNotification('Tasks Archived', { body: `${selectedTasks.size} tasks archived successfully.` });
+            alert('Selected tasks archived successfully!');
         } catch (error) {
             console.error("Error archiving tasks:", error);
-            showNotification('Error archiving tasks.');
+            alert('Error archiving tasks.');
         }
     });
 
@@ -372,11 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await deleteTask(taskId);
             }
             selectedTasks.clear();
-            showNotification('Selected tasks deleted successfully!');
-            showDesktopNotification('Tasks Deleted', { body: `${selectedTasks.size} tasks deleted successfully.` });
+            alert('Selected tasks deleted successfully!');
         } catch (error) {
             console.error("Error deleting tasks:", error);
-            showNotification('Error deleting tasks.');
+            alert('Error deleting tasks.');
         }
     });
 
@@ -446,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`Added new company: ${assignedTo}`);
             } catch (error) {
                 console.error("Error saving new company:", error);
-                showNotification('Error saving new company.');
+                alert('Error saving new company.');
             }
         }
 
@@ -467,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
             comments: editingTaskId ? (await getTask(editingTaskId))?.comments || [] : [],
             history: editingTaskId ? (await getTask(editingTaskId))?.history || [] : [],
             attachments: editingTaskId ? (await getTask(editingTaskId))?.attachments || [] : [],
-            order: 0 // Initialize order for sorting
+            order: 0
         };
 
         try {
@@ -486,19 +465,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (Object.keys(details).length > 0) {
                     await logHistory(task.id, `Task updated`, details);
                 }
-                showNotification('Task updated successfully!');
-                showDesktopNotification('Task Updated', { body: `Task R#${task.roomNumber} updated.` });
+                alert('Task updated successfully!');
             } else {
                 await saveTask(task);
                 await logHistory(task.id, `Task created`);
-                showNotification('Task added successfully!');
-                showDesktopNotification('Task Added', { body: `Task R#${task.roomNumber} added.` });
+                alert('Task added successfully!');
             }
             taskModal.classList.add('hidden');
             resetForm();
         } catch (error) {
             console.error("Error submitting task:", error);
-            showNotification('Error submitting task.');
+            alert('Error submitting task.');
         }
     });
 
@@ -537,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
             taskModal.classList.remove('hidden');
         } catch (error) {
             console.error("Error opening task modal:", error);
-            showNotification('Error opening modal.');
+            alert('Error opening modal.');
         }
     }
 
@@ -557,25 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
             autocompleteList.innerHTML = '';
         } catch (error) {
             console.error("Error resetting form:", error);
-            showNotification('Error resetting form.');
-        }
-    }
-
-    function showNotification(message) {
-        try {
-            notification.textContent = message;
-            notification.classList.remove('hidden');
-            setTimeout(() => {
-                notification.classList.add('hidden');
-            }, 3000);
-        } catch (error) {
-            console.error("Error showing notification:", error);
-        }
-    }
-
-    function showDesktopNotification(title, options) {
-        if (Notification.permission === 'granted') {
-            new Notification(title, options);
+            alert('Error resetting form.');
         }
     }
 
@@ -631,8 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await db.ref(`archive/${taskId}`).set({ ...task, archivedAt: new Date().toISOString() });
                     await db.ref(`tasks/${taskId}`).remove();
                     await logHistory(taskId, `Task archived`);
-                    showNotification('Task archived successfully!');
-                    showDesktopNotification('Task Archived', { body: `Task R#${task.roomNumber} archived.` });
+                    alert('Task archived successfully!');
                 }, 500);
             }
         } catch (error) {
@@ -649,8 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await db.ref(`tasks/${taskId}`).set({ ...task, archivedAt: null });
                 await db.ref(`archive/${taskId}`).remove();
                 await logHistory(taskId, `Task unarchived`);
-                showNotification('Task unarchived successfully!');
-                showDesktopNotification('Task Unarchived', { body: `Task R#${task.roomNumber} unarchived.` });
+                alert('Task unarchived successfully!');
             }
         } catch (error) {
             console.error("Error unarchiving task:", error);
@@ -665,8 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(async () => {
                 await db.ref(`tasks/${taskId}`).remove();
                 await logHistory(taskId, `Task deleted`);
-                showNotification('Task deleted successfully!');
-                showDesktopNotification('Task Deleted', { body: `Task ID ${taskId} deleted.` });
+                alert('Task deleted successfully!');
             }, 500);
         } catch (error) {
             console.error("Error deleting task:", error);
@@ -681,8 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newTask = { ...task, id: Date.now(), createdAt: new Date().toISOString() };
                 await saveTask(newTask);
                 await logHistory(newTask.id, `Task duplicated from ${taskId}`);
-                showNotification('Task duplicated successfully!');
-                showDesktopNotification('Task Duplicated', { body: `Task R#${task.roomNumber} duplicated.` });
+                alert('Task duplicated successfully!');
             }
         } catch (error) {
             console.error("Error duplicating task:", error);
@@ -724,8 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ];
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment added: ${comment}`, { comment });
-                showNotification('Comment added successfully!');
-                showDesktopNotification('Comment Added', { body: `Comment added to Task ID ${taskId}.` });
+                alert('Comment added successfully!');
                 renderTasks();
             }
         } catch (error) {
@@ -746,8 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment edited: ${oldText} to ${newText}`, { oldText, newText });
-                showNotification('Comment updated successfully!');
-                showDesktopNotification('Comment Updated', { body: `Comment updated for Task ID ${taskId}.` });
+                alert('Comment updated successfully!');
                 renderTasks();
             }
         } catch (error) {
@@ -764,8 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const updatedComments = task.comments.filter((_, index) => index !== commentIndex);
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment deleted: ${commentText}`, { comment: commentText });
-                showNotification('Comment deleted successfully!');
-                showDesktopNotification('Comment Deleted', { body: `Comment deleted from Task ID ${taskId}.` });
+                alert('Comment deleted successfully!');
                 renderTasks();
             }
         } catch (error) {
@@ -784,8 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ];
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
                 await logHistory(taskId, `Attachment added: ${attachment}`, { attachment });
-                showNotification('Attachment added successfully!');
-                showDesktopNotification('Attachment Added', { body: `Attachment added to Task ID ${taskId}.` });
+                alert('Attachment added successfully!');
                 renderTasks();
             }
         } catch (error) {
@@ -805,8 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
                 await logHistory(taskId, `Attachment edited: ${newText}`, { attachment: newText });
-                showNotification('Attachment updated successfully!');
-                showDesktopNotification('Attachment Updated', { body: `Attachment updated for Task ID ${taskId}.` });
+                alert('Attachment updated successfully!');
                 renderTasks();
             }
         } catch (error) {
@@ -886,7 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) {
             console.error("Error rendering tasks:", error);
-            showNotification('Error rendering tasks.');
+            alert('Error rendering tasks.');
         }
     }
 
@@ -941,6 +891,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const checkOut = document.createElement('span');
             checkOut.innerHTML = `<i class="fas fa-clock"></i> ${task.checkOutTime}`;
             meta.appendChild(checkOut);
+        }
+        if (task.newReservationId && task.category === 'extensions') {
+            const reservation = document.createElement('span');
+            reservation.innerHTML = `<i class="fas fa-ticket-alt"></i> ${task.newReservationId}`;
+            meta.appendChild(reservation);
         }
         if (task.assignedTo) {
             const assigned = document.createElement('span');
@@ -1113,8 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteBtn.addEventListener('click', () => {
                     if (confirm('Are you sure you want to delete this archived task?')) {
                         db.ref(`archive/${task.id}`).remove();
-                        showNotification('Archived task deleted successfully!');
-                        showDesktopNotification('Archived Task Deleted', { body: `Task R#${task.roomNumber} deleted.` });
+                        alert('Archived task deleted successfully!');
                     }
                 });
 
@@ -1127,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) {
             console.error("Error rendering archive:", error);
-            showNotification('Error rendering archive.');
+            alert('Error rendering archive.');
         }
     }
 
@@ -1169,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', () => {
             historyModal.classList.remove('hidden');
         } catch (error) {
             console.error("Error showing history:", error);
-            showNotification('Error showing history.');
+            alert('Error showing history.');
         }
     }
 
@@ -1177,22 +1131,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!task.dueDate || task.status === 'Completed') return false;
         const dueDateTime = new Date(`${task.dueDate} ${task.dueTime || '23:59'}`);
         return dueDateTime < new Date();
-    }
-
-    function checkReminders(tasks) {
-        tasks.forEach(task => {
-            if (task.dueDate && task.status !== 'Completed') {
-                const dueDateTime = new Date(`${task.dueDate} ${task.dueTime || '23:59'}`);
-                const now = new Date();
-                const timeDiff = dueDateTime - now;
-                if (timeDiff > 0 && timeDiff <= 15 * 60 * 1000) { // 15 minutes
-                    showDesktopNotification('Task Reminder', {
-                        body: `Task R#${task.roomNumber} is due soon: ${dueDateTime.toLocaleString()}`,
-                        icon: 'https://via.placeholder.com/64'
-                    });
-                }
-            }
-        });
     }
 
     // Drag and Drop Handlers
@@ -1209,8 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
             task.category = newCategory;
             await updateTask(task);
             await logHistory(taskId, `Task moved to ${newCategory}`);
-            showNotification('Task moved successfully!');
-            showDesktopNotification('Task Moved', { body: `Task ID ${taskId} moved to ${newCategory}.` });
+            alert('Task moved successfully!');
         }
     };
 });
