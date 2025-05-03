@@ -13,69 +13,69 @@
     <canvas id="linkCanvas" class="absolute top-0 left-0"></canvas>
     <div class="container mx-auto p-4 sm:p-6 relative">
         <!-- Header -->
-        <header class="flex flex-col sm:flex-row justify-between items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0 animate-fade-in">
             <h1 class="text-2xl sm:text-4xl font-extrabold text-black dark:text-gray-100">Dapture Company Task Manager</h1>
             <div class="flex flex-wrap gap-2 sm:gap-4 items-center">
-                <button id="darkModeToggle" class="bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base">
+                <button id="darkModeToggle" class="bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
                     <i class="fas fa-moon mr-1 sm:mr-2"></i>Toggle Dark Mode
                 </button>
-                <button id="exportTasksBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base">
+                <button id="exportTasksBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
                     <i class="fas fa-download mr-1 sm:mr-2"></i>Export Tasks
                 </button>
-                <button id="importTasksBtn" class="bg-green-500 hover:bg-green-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base">
+                <button id="importTasksBtn" class="bg-green-500 hover:bg-green-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
                     <i class="fas fa-upload mr-1 sm:mr-2"></i>Import Tasks
                 </button>
                 <input type="file" id="importFileInput" class="hidden" accept=".json">
-                <button id="addTaskBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base">
+                <button id="addTaskBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
                     <i class="fas fa-plus mr-1 sm:mr-2"></i>Add Task
                 </button>
-                <button id="viewArchiveBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base">
+                <button id="viewArchiveBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
                     <i class="fas fa-archive mr-1 sm:mr-2"></i>View Archive
                 </button>
             </div>
         </header>
 
         <!-- Search, Sort, Filter, and Bulk Actions -->
-        <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 sm:mb-6 gap-3 sm:gap-4 bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg transition-colors duration-300">
+        <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 sm:mb-6 gap-3 sm:gap-4 bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-lg transition-colors duration-300 animate-slide-up">
             <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
                 <div class="relative w-full sm:w-64">
-                    <input id="searchInput" type="text" placeholder="Search tasks..." class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 w-full focus:outline-none focus:ring-2 focus:ring-teal-400">
+                    <input id="searchInput" type="text" placeholder="Search tasks..." class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 w-full focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all">
                     <i class="fas fa-search absolute right-3 top-3 text-gray-500 dark:text-gray-400"></i>
                 </div>
-                <select id="sportTasks" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400 w-full sm:w-auto">
+                <select id="sportTasks" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400 w-full sm:w-auto transition-all">
                     <option value="none">Sort: None</option>
                     <option value="priority">Sort by Priority</option>
                     <option value="dueDate">Sort by Due Date</option>
                 </select>
-                <select id="filterPriority" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400 w-full sm:w-auto">
+                <select id="filterPriority" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-400 w-full sm:w-auto transition-all">
                     <option value="all">Filter: All Priorities</option>
                     <option value="low">Low Priority</option>
                     <option value="medium">Medium Priority</option>
                     <option value="high">High Priority</option>
                 </select>
-                <input id="tagFilter" type="text" placeholder="Filter by Tag..." class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-teal-400">
+                <input id="tagFilter" type="text" placeholder="Filter by Tag..." class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all">
             </div>
             <div class="flex gap-2 sm:gap-4 w-full sm:w-auto">
-                <button id="bulkArchiveBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base w-full sm:w-auto">
+                <button id="bulkArchiveBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base w-full sm:w-auto hover:scale-105">
                     <i class="fas fa-archive mr-1 sm:mr-2"></i>Bulk Archive
                 </button>
-                <button id="bulkDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base w-full sm:w-auto">
+                <button id="bulkDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base w-full sm:w-auto hover:scale-105">
                     <i class="fas fa-trash mr-1 sm:mr-2"></i>Bulk Delete
                 </button>
-                <button id="clearTasksBtn" class="bg-red-500 hover:bg-red-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base w-full sm:w-auto">
+                <button id="clearTasksBtn" class="bg-red-500 hover:bg-red-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base w-full sm:w-auto hover:scale-105">
                     <i class="fas fa-trash mr-1 sm:mr-2"></i>Clear All
                 </button>
             </div>
         </div>
 
         <!-- Task Columns -->
-        <div class="flex flex-col sm:flex-row sm:space-x-4 overflow-x-auto pb-4 gap-4 sm:gap-0 relative">
+        <div class="flex flex-col sm:flex-row sm:space-x-4 overflow-x-auto pb-4 gap-4 sm:gap-0 relative animate-fade-in">
             <div class="w-full sm:w-1/4 sm:min-w-[200px] bg-gray-50 dark:bg-gray-700 p-4 rounded-xl shadow-lg transition-colors duration-300">
                 <h2 class="text-xl sm:text-2xl font-semibold mb-2 text-gray-800 dark:text-gray-100 flex items-center">
                     <i class="fas fa-sign-out-alt mr-2"></i>Check-Out
                 </h2>
                 <p id="checkoutCounter" class="text-sm text-gray-600 dark:text-gray-300 mb-2">Tasks: 0</p>
-                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all" data-category="checkout">
+                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all hover:scale-105" data-category="checkout">
                     <i class="fas fa-plus mr-2"></i>Quick Add
                 </button>
                 <div id="checkout" class="task-column min-h-[200px]" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
@@ -85,7 +85,7 @@
                     <i class="fas fa-clock mr-2"></i>Extensions
                 </h2>
                 <p id="extensionsCounter" class="text-sm text-gray-600 dark:text-gray-300 mb-2">Tasks: 0</p>
-                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all" data-category="extensions">
+                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all hover:scale-105" data-category="extensions">
                     <i class="fas fa-plus mr-2"></i>Quick Add
                 </button>
                 <div id="extensions" class="task-column min-h-[200px]" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
@@ -95,7 +95,7 @@
                     <i class="fas fa-exchange-alt mr-2"></i>Handover
                 </h2>
                 <p id="handoverCounter" class="text-sm text-gray-600 dark:text-gray-300 mb-2">Tasks: 0</p>
-                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all" data-category="handover">
+                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all hover:scale-105" data-category="handover">
                     <i class="fas fa-plus mr-2"></i>Quick Add
                 </button>
                 <div id="handover" class="task-column min-h-[200px]" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
@@ -105,7 +105,7 @@
                     <i class="fas fa-concierge-bell mr-2"></i>Guest Requests
                 </h2>
                 <p id="guestrequestsCounter" class="text-sm text-gray-600 dark:text-gray-300 mb-2">Tasks: 0</p>
-                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all" data-category="guestrequests">
+                <button class="quick-add-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg mb-4 flex items-center transition-all hover:scale-105" data-category="guestrequests">
                     <i class="fas fa-plus mr-2"></i>Quick Add
                 </button>
                 <div id="guestrequests" class="task-column min-h-[200px]" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
@@ -113,116 +113,116 @@
         </div>
 
         <!-- Quick Add Card (Floating Action Button) -->
-        <button id="quickAddBtn" class="fixed bottom-6 right-6 bg-teal-500 hover:bg-teal-600 text-white p-4 rounded-full shadow-lg flex items-center transition-all">
+        <button id="quickAddBtn" class="fixed bottom-6 right-6 bg-teal-500 hover:bg-teal-600 text-white p-4 rounded-full shadow-lg flex items-center transition-all hover:scale-110 animate-pulse-slow">
             <i class="fas fa-plus text-xl"></i>
         </button>
-    </div>
 
-    <!-- Add/Edit Task Modal -->
-    <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transform transition-all transition-colors duration-300">
-            <h2 id="modalTitle" class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Add New Task</h2>
-            <div id="taskForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Room Number</label>
-                    <input id="taskRoomNumber" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" required placeholder="e.g., 502" aria-required="true">
-                </div>
-                <div class="hidden" id="newReservationIdField">
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">New Reservation ID (for Extensions)</label>
-                    <input id="taskNewReservationId" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" placeholder="e.g., Resv#7616">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Category</label>
-                    <select id="taskCategory" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" aria-label="Task Category">
-                        <option value="checkout">Check-Out</option>
-                        <option value="extensions">Extensions</option>
-                        <option value="handover">Handover</option>
-                        <option value="guestrequests">Guest Requests</option>
-                    </select>
-                </div>
-                <div class="hidden" id="checkOutTimeField">
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Check-Out Time</label>
-                    <input id="taskCheckOutTime" type="time" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" aria-label="Check-Out Time">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Details</label>
-                    <textarea id="taskDetails" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" rows="3" placeholder="e.g., Extra visitor in the redberry" aria-label="Task Details"></textarea>
-                </div>
-                <div class="flex space-x-4">
-                    <div class="flex-1">
-                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Due Date</label>
-                        <input id="taskDueDate" type="date" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" aria-label="Due Date">
+        <!-- Add/Edit Task Modal -->
+        <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center hidden animate-modal-in">
+            <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transform transition-all transition-colors duration-300">
+                <h2 id="modalTitle" class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Add New Task</h2>
+                <div id="taskForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Room Number</label>
+                        <input id="taskRoomNumber" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" required placeholder="e.g., 502" aria-required="true">
                     </div>
-                    <div class="flex-1">
-                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Due Time</label>
-                        <input id="taskDueTime" type="time" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" aria-label="Due Time">
+                    <div class="hidden" id="newReservationIdField">
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">New Reservation ID (for Extensions)</label>
+                        <input id="taskNewReservationId" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" placeholder="e.g., Resv#7616">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Category</label>
+                        <select id="taskCategory" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" aria-label="Task Category">
+                            <option value="checkout">Check-Out</option>
+                            <option value="extensions">Extensions</option>
+                            <option value="handover">Handover</option>
+                            <option value="guestrequests">Guest Requests</option>
+                        </select>
+                    </div>
+                    <div class="hidden" id="checkOutTimeField">
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Check-Out Time</label>
+                        <input id="taskCheckOutTime" type="time" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" aria-label="Check-Out Time">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Details</label>
+                        <textarea id="taskDetails" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" rows="3" placeholder="e.g., Extra visitor in the redberry" aria-label="Task Details"></textarea>
+                    </div>
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Due Date</label>
+                            <input id="taskDueDate" type="date" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" aria-label="Due Date">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Due Time</label>
+                            <input id="taskDueTime" type="time" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" aria-label="Due Time">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Priority</label>
+                        <select id="taskPriority" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" aria-label="Priority">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div id="assignedToField" class="autocomplete-container">
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Company To</label>
+                        <input id="taskAssignedTo" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" placeholder="e.g., Booking.com" aria-label="Company To">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Status</label>
+                        <select id="taskStatus" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" aria-label="Status">
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Tags (comma-separated)</label>
+                        <input id="taskTags" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" placeholder="e.g., urgent,maintenance" aria-label="Tags">
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button id="cancelBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all hover:scale-105">Cancel</button>
+                        <button id="submitBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-all hover:scale-105">Add Task</button>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Priority</label>
-                    <select id="taskPriority" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" aria-label="Priority">
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                    </select>
+            </div>
+        </div>
+
+        <!-- Archive Modal -->
+        <div id="archiveModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden animate-modal-in">
+            <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-3/4 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <i class="fas fa-archive mr-3 text-teal-500"></i>Archived Tasks
+                    </h2>
+                    <button id="closeArchiveBtn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-all hover:scale-110">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
                 </div>
-                <div id="assignedToField" class="autocomplete-container">
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Company To</label>
-                    <input id="taskAssignedTo" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" placeholder="e.g., Booking.com" aria-label="Company To">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Status</label>
-                    <select id="taskStatus" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" aria-label="Status">
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Tags (comma-separated)</label>
-                    <input id="taskTags" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" placeholder="e.g., urgent,maintenance" aria-label="Tags">
-                </div>
-                <div class="flex justify-end space-x-3">
-                    <button id="cancelBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all">Cancel</button>
-                    <button id="submitBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-all">Add Task</button>
+                <div id="archiveList" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Task History Modal -->
+        <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden animate-modal-in">
+            <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
+                <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Task History</h2>
+                <div id="historyList" class="max-h-96 overflow-y-auto"></div>
+                <div class="flex justify-end mt-4 sm:mt-6">
+                    <button id="closeHistoryBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all hover:scale-105">Close</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Archive Modal -->
-    <div id="archiveModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-3/4 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-bold flex items-center">
-                    <i class="fas fa-archive mr-3 text-teal-500"></i>Archived Tasks
-                </h2>
-                <button id="closeArchiveBtn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-all">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div id="archiveList" class="space-y-4"></div>
+        <!-- Notification -->
+        <div id="notification" class="fixed top-4 right-4 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 hidden animate-notification">
+            Task added successfully!
         </div>
-    </div>
 
-    <!-- Task History Modal -->
-    <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
-            <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Task History</h2>
-            <div id="historyList" class="max-h-96 overflow-y-auto"></div>
-            <div class="flex justify-end mt-4 sm:mt-6">
-                <button id="closeHistoryBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notification -->
-    <div id="notification" class="fixed top-4 right-4 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 hidden">
-        Task added successfully!
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="script.js"></script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'937cbcfaff7cc00b',t:'MTc0NTkwODA5NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+        <script src="script.js"></script>
+</body>
 </html>
