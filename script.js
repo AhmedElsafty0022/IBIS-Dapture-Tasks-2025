@@ -465,17 +465,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (Object.keys(details).length > 0) {
                     await logHistory(task.id, `Task updated`, details);
                 }
-                alert('Task updated successfully!');
+                
             } else {
                 await saveTask(task);
                 await logHistory(task.id, `Task created`);
-                alert('Task added successfully!');
+               
             }
             taskModal.classList.add('hidden');
             resetForm();
         } catch (error) {
             console.error("Error submitting task:", error);
-            alert('Error submitting task.');
+        
         }
     });
 
@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await db.ref(`archive/${taskId}`).set({ ...task, archivedAt: new Date().toISOString() });
                     await db.ref(`tasks/${taskId}`).remove();
                     await logHistory(taskId, `Task archived`);
-                    alert('Task archived successfully!');
+                    
                 }, 500);
             }
         } catch (error) {
@@ -607,7 +607,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 await db.ref(`tasks/${taskId}`).set({ ...task, archivedAt: null });
                 await db.ref(`archive/${taskId}`).remove();
                 await logHistory(taskId, `Task unarchived`);
-                alert('Task unarchived successfully!');
+             
+			 
             }
         } catch (error) {
             console.error("Error unarchiving task:", error);
@@ -622,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(async () => {
                 await db.ref(`tasks/${taskId}`).remove();
                 await logHistory(taskId, `Task deleted`);
-                alert('Task deleted successfully!');
+            
             }, 500);
         } catch (error) {
             console.error("Error deleting task:", error);
@@ -637,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newTask = { ...task, id: Date.now(), createdAt: new Date().toISOString() };
                 await saveTask(newTask);
                 await logHistory(newTask.id, `Task duplicated from ${taskId}`);
-                alert('Task duplicated successfully!');
+           
             }
         } catch (error) {
             console.error("Error duplicating task:", error);
@@ -679,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ];
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment added: ${comment}`, { comment });
-                alert('Comment added successfully!');
+                
                 renderTasks();
             }
         } catch (error) {
@@ -700,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment edited: ${oldText} to ${newText}`, { oldText, newText });
-                alert('Comment updated successfully!');
+                
                 renderTasks();
             }
         } catch (error) {
@@ -717,7 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const updatedComments = task.comments.filter((_, index) => index !== commentIndex);
                 await db.ref(`tasks/${taskId}/comments`).set(updatedComments);
                 await logHistory(taskId, `Comment deleted: ${commentText}`, { comment: commentText });
-                alert('Comment deleted successfully!');
+                
                 renderTasks();
             }
         } catch (error) {
@@ -736,7 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ];
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
                 await logHistory(taskId, `Attachment added: ${attachment}`, { attachment });
-                alert('Attachment added successfully!');
+               
                 renderTasks();
             }
         } catch (error) {
@@ -756,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
                 await db.ref(`tasks/${taskId}/attachments`).set(updatedAttachments);
                 await logHistory(taskId, `Attachment edited: ${newText}`, { attachment: newText });
-                alert('Attachment updated successfully!');
+            
                 renderTasks();
             }
         } catch (error) {
@@ -1068,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteBtn.addEventListener('click', () => {
                     if (confirm('Are you sure you want to delete this archived task?')) {
                         db.ref(`archive/${task.id}`).remove();
-                        alert('Archived task deleted successfully!');
+                        
                     }
                 });
 
