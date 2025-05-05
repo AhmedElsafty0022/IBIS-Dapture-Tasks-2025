@@ -16,9 +16,6 @@
         <header class="flex flex-col sm:flex-row justify-between items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0 animate-fade-in">
             <h1 class="text-2xl sm:text-4xl font-extrabold text-black dark:text-gray-100">Dapture Company Task Manager</h1>
             <div class="flex flex-wrap gap-2 sm:gap-4 items-center">
-                <button id="darkModeToggle" class="bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
-                    <i class="fas fa-moon mr-1 sm:mr-2"></i>Toggle Dark Mode
-                </button>
                 <button id="exportTasksBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-lg flex items-center shadow-lg transition-all text-sm sm:text-base hover:scale-105">
                     <i class="fas fa-download mr-1 sm:mr-2"></i>Export Tasks
                 </button>
@@ -121,7 +118,7 @@
         <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center hidden animate-modal-in">
             <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transform transition-all transition-colors duration-300">
                 <h2 id="modalTitle" class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Add New Task</h2>
-                <div id="taskForm" class="space-y-4">
+                <form id="taskForm" class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Room Number</label>
                         <input id="taskRoomNumber" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" required placeholder="e.g., 502" aria-required="true">
@@ -182,17 +179,17 @@
                         <input id="taskTags" type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 transition-all" placeholder="e.g., urgent,maintenance" aria-label="Tags">
                     </div>
                     <div class="flex justify-end space-x-3">
-                        <button id="cancelBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all hover:scale-105">Cancel</button>
-                        <button id="submitBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-all hover:scale-105">Add Task</button>
+                        <button type="button" id="cancelBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all hover:scale-105">Cancel</button>
+                        <button type="submit" id="submitBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-all hover:scale-105">Add Task</button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
 
         <!-- Archive Modal -->
         <div id="archiveModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden animate-modal-in">
             <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-3/4 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
-                <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center justify-between mb microt-6">
                     <h2 class="text-2xl font-bold flex items-center">
                         <i class="fas fa-archive mr-3 text-teal-500"></i>Archived Tasks
                     </h2>
@@ -214,19 +211,19 @@
                 </div>
             </div>
         </div>
-		
-		<!-- Reminder Modal -->
-		<div id="reminderModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden animate-modal-in">
-			<div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
-				<h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Daily Task Suggestions</h2>
-				<p class="mb-4 text-sm text-gray-600 dark:text-gray-300">Based on recent activity, here are suggested tasks:</p>
-				<div id="reminderList" class="space-y-4"></div>
-				<div class="flex justify-end space-x-3 mt-4">
-					<button id="skipReminderBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all hover:scale-105">Skip</button>
-            <button id="confirmReminderBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-all hover:scale-105">Add Selected</button>
-				</div>
-					</div>
-						</div>
+
+        <!-- Reminder Modal -->
+        <div id="reminderModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden animate-modal-in">
+            <div class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl w-11/12 sm:w-1/2 max-h-[90vh] overflow-y-auto text-gray-800 dark:text-gray-100 shadow-2xl transition-colors duration-300">
+                <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Daily Task Suggestions</h2>
+                <p class="mb-4 text-sm text-gray-600 dark:text-gray-300">Based on recent activity, here are suggested tasks:</p>
+                <div id="reminderList" class="space-y-4"></div>
+                <div class="flex justify-end space-x-3 mt-4">
+                    <button id="skipReminderBtn" class="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg transition-all hover:scale-105">Skip</button>
+                    <button id="confirmReminderBtn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-all hover:scale-105">Add Selected</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Notification -->
         <div id="notification" class="fixed top-4 right-4 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 hidden animate-notification">
