@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let touchStartX = 0;
     let touchEndX = 0;
     let companies = [...predefinedCompanies];
-    let suggestedTasks = []; // Store suggested tasks for reminder modal
+    let suggestedTasks = [];
 
     // DOM elements
     const addTaskBtn = document.getElementById('addTaskBtn');
@@ -55,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const newReservationIdField = document.getElementById('newReservationIdField');
     const assignedToField = document.getElementById('assignedToField');
     const quickAddButtons = document.querySelectorAll('.quick-add-btn');
-    const darkModeToggle = document.getElementById('darkModeToggle');
     const exportTasksBtn = document.getElementById('exportTasksBtn');
     const importTasksBtn = document.getElementById('importTasksBtn');
     const importFileInput = document.getElementById('importFileInput');
@@ -79,12 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load of tasks and check reminders
     try {
-        db.ref('tasks').on('value', (snapshot) => {
-            const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+        db.ref('tasks').on('value', () => {
             renderTasks();
         });
         db.ref('archive').on('value', () => renderArchive());
-        checkReminders(); // Check for recurring tasks on load
+        checkReminders();
     } catch (error) {
         console.error("Error loading tasks:", error);
         alert('Error loading tasks. Please try importing a backup.');
@@ -105,14 +103,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     await updateTask(task);
                     await logHistory(taskId, `Task moved to ${newCategory}`);
                 }
-                // Reorder tasks within the same column
                 const tasksInColumn = Array.from(evt.to.children).map(child => child.dataset.id);
                 await updateTaskOrder(newCategory, tasksInColumn);
             }
         });
     });
-
-
 
     // Export Tasks
     exportTasksBtn?.addEventListener('click', async () => {
@@ -239,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     taskAssignedTo.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            e.stopPropagation(); // Prevent Enter from submitting the form while in autocomplete
+            e.stopPropagation();
         }
     });
 
@@ -247,19 +242,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('taskForm')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.target.closest('textarea')) {
             e.preventDefault();
-            console.log("Enter key pressed to submit form");
             document.getElementById('submitBtn').click();
         }
     });
 
     // Open Modal for Adding Task
     addTaskBtn?.addEventListener('click', () => {
-        console.log("Add Task button clicked");
         openTaskModal('Add New Task', 'Add Task');
     });
 
     quickAddBtn?.addEventListener('click', () => {
-        console.log("Quick Add FAB clicked");
         openTaskModal('Add New Task', 'Add Task');
     });
 
@@ -267,14 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
     quickAddButtons.forEach(button => {
         button?.addEventListener('click', () => {
             const category = button.getAttribute('data-category');
-            console.log(`Quick Add button clicked for category: ${category}`);
             openTaskModal('Quick Add Task', 'Add Task', category);
         });
     });
 
     // Cancel Modal
     cancelBtn?.addEventListener('click', () => {
-        console.log("Cancel button clicked");
         taskModal.classList.add('hidden');
         resetForm();
     });
@@ -303,13 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form Submission
     document.getElementById('taskForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        console.log("Form submitted");
         submitBtn.click();
     });
 
     // Clear All Tasks
     clearTasksBtn?.addEventListener('click', async () => {
-        console.log("Clear All button clicked");
         if (confirm('Are you sure you want to clear all tasks, archives, history, companies, and room usage data?')) {
             try {
                 await db.ref('tasks').remove();
@@ -328,55 +316,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Search Tasks
     searchInput?.addEventListener('input', () => {
         const query = searchInput.value.toLowerCase();
-        console.log("Search input changed:", query);
         renderTasks(query);
     });
 
     // Sort Tasks
     sortTasks?.addEventListener('change', () => {
-        console.log("Sort option changed:", sortTasks.value);
         renderTasks(searchInput.value.toLowerCase());
     });
 
     // Filter by Priority
     filterPriority?.addEventListener('change', () => {
-        console.log("Priority filter changed:", filterPriority.value);
         renderTasks(searchInput.value.toLowerCase());
     });
 
     // Filter by Tag
     tagFilter?.addEventListener('input', () => {
         const query = searchInput.value.toLowerCase();
-        console.log("Tag filter changed:", tagFilter.value);
         renderTasks(query);
     });
 
     // View Archive
     viewArchiveBtn?.addEventListener('click', () => {
-        console.log("View Archive button clicked");
         archiveModal.classList.remove('hidden');
         renderArchive();
     });
 
     closeArchiveBtn?.addEventListener('click', () => {
-        console.log("Close Archive button clicked");
         archiveModal.classList.add('hidden');
     });
 
     // Close History Modal
     closeHistoryBtn?.addEventListener('click', () => {
-        console.log("Close History button clicked");
         historyModal.classList.add('hidden');
     });
 
     // Reminder Modal Buttons
     skipReminderBtn?.addEventListener('click', () => {
-        console.log("Skip Reminder button clicked");
         reminderModal.classList.add('hidden');
     });
 
     confirmReminderBtn?.addEventListener('click', async () => {
-        console.log("Confirm Reminder button clicked");
         try {
             const checkboxes = reminderList.querySelectorAll('input[type="checkbox"]:checked');
             for (let checkbox of checkboxes) {
@@ -417,7 +396,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dynamically Show/Hide Fields Based on Category
     taskCategory?.addEventListener('change', () => {
         const category = taskCategory.value;
-        console.log("Category changed:", category);
         checkOutTimeField.classList.add('hidden');
         newReservationIdField.classList.add('hidden');
         assignedToField.classList.remove('hidden');
@@ -436,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Submit Task Form
     submitBtn?.addEventListener('click', async (e) => {
-        console.log("Submit button clicked");
         e.preventDefault();
         const roomNumber = document.getElementById('taskRoomNumber').value.trim();
         if (!roomNumber && (taskCategory.value === 'checkout' || taskCategory.value === 'extensions')) {
@@ -459,7 +436,6 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await db.ref('companies').push(assignedTo);
                 companies.push(assignedTo);
-                console.log(`Added new company: ${assignedTo}`);
             } catch (error) {
                 console.error("Error saving new company:", error);
                 alert('Error saving new company.');
@@ -489,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             if (editingTaskId) {
                 const oldTask = await getTask(editingTaskId);
-                task.order = oldTask.order; // Preserve existing order
+                task.order = oldTask.order;
                 const details = {};
                 if (oldTask.status !== task.status) {
                     details.oldStatus = oldTask.status;
@@ -504,7 +480,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     await logHistory(task.id, `Task updated`, details);
                 }
             } else {
-                // For new tasks, set order based on the last task in the category
                 const snapshot = await db.ref('tasks').once('value');
                 const tasks = snapshot.val() ? Object.values(snapshot.val()).filter(t => t.category === category) : [];
                 task.order = tasks.length > 0 ? Math.max(...tasks.map(t => t.order)) + 1 : 0;
@@ -523,24 +498,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check Reminders
     async function checkReminders() {
         try {
-            // Check if reminders were shown today
             const lastReminderDate = localStorage.getItem('lastReminderDate');
             const today = new Date().toISOString().split('T')[0];
-            if (lastReminderDate === today) {
-                console.log("Reminders already shown today");
-                return;
-            }
+            if (lastReminderDate === today) return;
 
-            // Get room usage data
             const snapshot = await db.ref('roomUsage').once('value');
             const roomUsage = snapshot.val() ? Object.values(snapshot.val()) : [];
 
-            // Filter usage from the last 7 days
             const oneWeekAgo = new Date();
             oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
             const recentUsage = roomUsage.filter(usage => new Date(usage.timestamp) >= oneWeekAgo);
 
-            // Count usage by room and category
             const usageCounts = recentUsage.reduce((acc, usage) => {
                 const key = `${usage.roomNumber}:${usage.category}`;
                 if (!acc[key]) {
@@ -550,7 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return acc;
             }, {});
 
-            // Identify rooms used 3 or more times
             suggestedTasks = Object.values(usageCounts).filter(usage => usage.count >= 3).map(usage => ({
                 id: `${usage.roomNumber}:${usage.category}:${Date.now()}`,
                 roomNumber: usage.roomNumber,
@@ -596,7 +563,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 timestamp: new Date().toISOString()
             };
             await db.ref('roomUsage').push(usage);
-            console.log(`Logged room usage: ${roomNumber} in ${category}`);
         } catch (error) {
             console.error("Error logging room usage:", error);
             alert('Error logging room usage.');
@@ -643,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Sort tasks within each category
-            const priorityOrder = { high: 1, medium: 2, low: 3 };
+            const priorityOrder = { High: 1, Medium: 2, Low: 3 };
             Object.keys(tasksByCategory).forEach(category => {
                 if (sortTasks.value === 'priority') {
                     tasksByCategory[category].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
@@ -654,7 +620,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         return dateA - dateB;
                     });
                 } else {
-                    // Sort by order (default)
                     tasksByCategory[category].sort((a, b) => a.order - b.order);
                 }
             });
@@ -685,9 +650,316 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function createTaskElement(task) {
+        const taskElement = document.createElement('div');
+        taskElement.classList.add('task-card', `priority-${task.priority}`);
+        taskElement.setAttribute('data-id', task.id);
+        taskElement.setAttribute('draggable', 'true');
+
+        // Check if task is overdue
+        const dueDateTime = new Date(`${task.dueDate} ${task.dueTime || '23:59'}`);
+        if (dueDateTime < new Date() && task.status !== 'Completed') {
+            taskElement.classList.add('overdue');
+        }
+
+        // Format check-out time
+        let checkOutTimeDisplay = '';
+        if (task.checkOutTime) {
+            const [hours, minutes] = task.checkOutTime.split(':');
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            checkOutTimeDisplay = `${displayHours}:${minutes} ${period}`;
+        }
+
+        // Initialize comments and attachments if undefined
+        task.comments = task.comments || [];
+        task.attachments = task.attachments || [];
+
+        taskElement.innerHTML = `
+            <div class="swipe-background">
+                <i class="fas fa-archive icon text-xl text-gray-500"></i>
+            </div>
+            <div class="task-content">
+                <div class="task-header">
+                    <div class="task-title">
+                        <i class="fas fa-door-open mr-2 text-teal-500"></i>R#${task.roomNumber || 'N/A'}
+                        ${task.newReservationId ? `<span class="task-reservation-id ml-2 text-xs text-gray-500 dark:text-gray-400">${task.newReservationId}</span>` : ''}
+                    </div>
+                    <div class="task-meta">
+                        ${task.checkOutTime ? `<span class="task-checkout-time"><i class="fas fa-clock mr-1 text-teal-500"></i>${checkOutTimeDisplay}</span>` : ''}
+                        <span><i class="fas fa-user mr-1 text-teal-500"></i>${task.assignedTo || 'Unassigned'}</span>
+                        <span><i class="fas fa-exclamation-circle mr-1 text-teal-500"></i>${task.priority}</span>
+                        <span class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">
+                            <i class="fas fa-circle mr-1 text-xs"></i>${task.status}
+                        </span>
+                    </div>
+                </div>
+                <div class="task-details">
+                    <p>${task.details || 'No details'}</p>
+                </div>
+                <div class="tags-container">
+                    ${task.tags && task.tags.length ? task.tags.map(tag => `
+                        <span class="tag-item">
+                            <i class="fas fa-tag mr-1 text-teal-500 text-xs"></i>${tag}
+                        </span>
+                    `).join('') : ''}
+                </div>
+                <div class="comments-container" id="comments-${task.id}">
+                    ${task.comments.length ? task.comments.map(comment => `
+                        <div class="comment-item">
+                            <p class="comment-text">${comment.text}</p>
+                            <div class="comment-timestamp">${new Date(comment.timestamp).toLocaleString()}</div>
+                            <div class="comment-actions">
+                                <button class="edit-comment-btn text-teal-500 hover:text-teal-600" data-comment-id="${comment.id}">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </button>
+                                <button class="delete-comment-btn text-red-500 hover:text-red-600" data-comment-id="${comment.id}">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('') : '<p class="text-gray-500 dark:text-gray-400 text-sm">No comments</p>'}
+                </div>
+                <div class="attachments-container mt-2">
+                    ${task.attachments.length ? task.attachments.map(attachment => `
+                        <div class="attachment-item flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                            <i class="fas fa-file mr-1 text-teal-500"></i>${attachment.name} (${(attachment.size / 1024).toFixed(1)} KB)
+                        </div>
+                    `).join('') : ''}
+                </div>
+                <div class="task-action-bar">
+                    <button class="action-btn comment-btn" data-id="${task.id}" data-tooltip="Add Comment">
+                        <i class="fas fa-comment text-base"></i>
+                    </button>
+                    <button class="action-btn attach-btn" data-id="${task.id}" data-tooltip="Attach File">
+                        <i class="fas fa-paperclip text-base"></i>
+                    </button>
+                    <button class="action-btn history-btn" data-id="${task.id}" data-tooltip="View History">
+                        <i class="fas fa-history text-base"></i>
+                    </button>
+                    <button class="action-btn edit-btn" data-id="${task.id}" data-tooltip="Edit Task">
+                        <i class="fas fa-edit text-base"></i>
+                    </button>
+                    <button class="action-btn duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate Task">
+                        <i class="fas fa-copy text-base"></i>
+                    </button>
+                    <button class="action-btn archive-btn" data-id="${task.id}" data-tooltip="Archive Task">
+                        <i class="fas fa-archive text-base"></i>
+                    </button>
+                    <button class="action-btn delete-btn" data-id="${task.id}" data-tooltip="Delete Task">
+                        <i class="fas fa-trash text-base"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Drag and Drop Events
+        taskElement.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', task.id);
+            taskElement.classList.add('dragging');
+        });
+
+        taskElement.addEventListener('dragend', () => {
+            taskElement.classList.remove('dragging');
+        });
+
+        // Swipe to Archive
+        let isSwiping = false;
+        taskElement.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            isSwiping = false;
+        });
+
+        taskElement.addEventListener('touchmove', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diffX = touchStartX - touchEndX;
+            if (Math.abs(diffX) > 30) {
+                isSwiping = true;
+                if (diffX > 50) {
+                    taskElement.classList.add('swiping');
+                } else {
+                    taskElement.classList.remove('swiping');
+                }
+            }
+        });
+
+        taskElement.addEventListener('touchend', async (e) => {
+            if (!isSwiping) return;
+            const diffX = touchStartX - touchEndX;
+            if (diffX > 100) {
+                taskElement.classList.add('swiped');
+                setTimeout(async () => {
+                    await archiveTask(task.id);
+                    taskElement.remove();
+                }, 300);
+            } else {
+                taskElement.classList.remove('swiping');
+            }
+        });
+
+        // Action Button Events
+        taskElement.querySelector('.comment-btn').addEventListener('click', () => {
+            const commentsContainer = taskElement.querySelector(`#comments-${task.id}`);
+            commentsContainer.classList.toggle('active');
+            if (commentsContainer.classList.contains('active')) {
+                const commentInput = document.createElement('div');
+                commentInput.classList.add('comment-input', 'p-2', 'border', 'border-gray-200', 'dark:border-gray-600', 'rounded-lg', 'mt-2');
+                commentInput.innerHTML = `
+                    <textarea placeholder="Add a comment..." class="w-full p-2 border rounded-lg dark:bg-gray-800 dark:text-gray-200"></textarea>
+                    <div class="flex justify-end gap-2 mt-2">
+                        <button class="save-comment-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg">Save</button>
+                        <button class="cancel-comment-btn bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-1 rounded-lg">Cancel</button>
+                    </div>
+                `;
+                commentsContainer.appendChild(commentInput);
+
+                commentInput.querySelector('.save-comment-btn').addEventListener('click', async () => {
+                    const text = commentInput.querySelector('textarea').value.trim();
+                    if (text) {
+                        const comment = {
+                            id: Date.now(),
+                            text,
+                            timestamp: new Date().toISOString()
+                        };
+                        task.comments.push(comment);
+                        await updateTask(task);
+                        await logHistory(task.id, `Comment added: "${text}"`);
+                        commentInput.remove();
+                        renderTasks();
+                    }
+                });
+
+                commentInput.querySelector('.cancel-comment-btn').addEventListener('click', () => {
+                    commentInput.remove();
+                });
+            }
+        });
+
+        taskElement.querySelector('.attach-btn').addEventListener('click', () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.pdf,.jpg,.png';
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const attachment = {
+                        id: Date.now(),
+                        name: file.name,
+                        type: file.type,
+                        size: file.size
+                    };
+                    task.attachments.push(attachment);
+                    await updateTask(task);
+                    await logHistory(task.id, `Attachment added: ${file.name}`);
+                    renderTasks();
+                }
+            };
+            fileInput.click();
+        });
+
+        taskElement.querySelector('.history-btn').addEventListener('click', async () => {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            try {
+                const snapshot = await db.ref('history').once('value');
+                const history = snapshot.val() ? Object.values(snapshot.val()).filter(h => h.taskId === task.id) : [];
+                history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                history.forEach(entry => {
+                    const li = document.createElement('li');
+                    li.classList.add('border-b', 'border-gray-200', 'dark:border-gray-600', 'py-2');
+                    let detailsText = '';
+                    if (entry.details && Object.keys(entry.details).length > 0) {
+                        if (entry.details.oldStatus) {
+                            detailsText += `Status changed from ${entry.details.oldStatus} to ${entry.details.newStatus}`;
+                        }
+                        if (entry.details.oldPriority) {
+                            detailsText += `${detailsText ? ', ' : ''}Priority changed from ${entry.details.oldPriority} to ${entry.details.newPriority}`;
+                        }
+                    }
+                    li.innerHTML = `
+                        <span class="text-gray-700 dark:text-gray-300">${entry.action}${detailsText ? `: ${detailsText}` : ''}</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400 block">${new Date(entry.timestamp).toLocaleString()}</span>
+                    `;
+                    historyList.appendChild(li);
+                });
+                historyModal.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error loading history:", error);
+                alert('Error loading history.');
+            }
+        });
+
+        taskElement.querySelector('.edit-btn').addEventListener('click', () => {
+            openTaskModal('Edit Task', 'Update Task', null, task);
+        });
+
+        taskElement.querySelector('.duplicate-btn').addEventListener('click', async () => {
+            const newTask = { ...task, id: Date.now(), createdAt: new Date().toISOString(), comments: [], history: [], attachments: [] };
+            await saveTask(newTask);
+            await logHistory(newTask.id, `Task duplicated from task ${task.id}`);
+            renderTasks();
+        });
+
+        taskElement.querySelector('.archive-btn').addEventListener('click', async () => {
+            await archiveTask(task.id);
+            renderTasks();
+        });
+
+        taskElement.querySelector('.delete-btn').addEventListener('click', async () => {
+            if (confirm('Are you sure you want to delete this task?')) {
+                await deleteTask(task.id);
+                renderTasks();
+            }
+        });
+
+        // Comment Actions
+        taskElement.querySelectorAll('.edit-comment-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const commentId = btn.dataset.commentId;
+                const comment = task.comments.find(c => c.id == commentId);
+                if (!comment) return;
+
+                const commentItem = btn.closest('.comment-item');
+                commentItem.innerHTML = `
+                    <textarea class="w-full p-2 border rounded-lg dark:bg-gray-800 dark:text-gray-200">${comment.text}</textarea>
+                    <div class="flex justify-end gap-2 mt-2">
+                        <button class="save-edit-comment-btn bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-lg">Save</button>
+                        <button class="cancel-edit-comment-btn bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-1 rounded-lg">Cancel</button>
+                    </div>
+                `;
+
+                commentItem.querySelector('.save-edit-comment-btn').addEventListener('click', async () => {
+                    const newText = commentItem.querySelector('textarea').value.trim();
+                    if (newText) {
+                        comment.text = newText;
+                        comment.timestamp = new Date().toISOString();
+                        await updateTask(task);
+                        await logHistory(task.id, `Comment edited: "${newText}"`);
+                        renderTasks();
+                    }
+                });
+
+                commentItem.querySelector('.cancel-edit-comment-btn').addEventListener('click', () => {
+                    renderTasks();
+                });
+            });
+        });
+
+        taskElement.querySelectorAll('.delete-comment-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const commentId = btn.dataset.commentId;
+                task.comments = task.comments.filter(c => c.id != commentId);
+                await updateTask(task);
+                await logHistory(task.id, `Comment deleted`);
+                renderTasks();
+            });
+        });
+
+        return taskElement;
+    }
+
     function openTaskModal(title, btnText, presetCategory = null, taskData = null) {
         try {
-            console.log("Opening task modal with title:", title);
             modalTitle.textContent = title;
             submitBtn.textContent = btnText;
             editingTaskId = taskData ? taskData.id : null;
@@ -695,7 +967,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!taskData) {
                 resetForm();
                 document.getElementById('taskDueDate').value = new Date().toISOString().split('T')[0];
-                document.getElementById('taskStatus').value = 'Pending'; // Default to Pending for new tasks
             }
 
             if (presetCategory) {
@@ -711,7 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('taskDetails').value = taskData.details || '';
                 document.getElementById('taskDueDate').value = taskData.dueDate || '';
                 document.getElementById('taskDueTime').value = taskData.dueTime || '';
-                document.getElementById('taskPriority').value = taskData.priority || 'low';
+                document.getElementById('taskPriority').value = taskData.priority || 'Low';
                 document.getElementById('taskAssignedTo').value = taskData.assignedTo || '';
                 document.getElementById('taskStatus').value = taskData.status || 'Pending';
                 document.getElementById('taskTags').value = taskData.tags ? taskData.tags.join(', ') : '';
@@ -735,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     input.selectedIndex = 0;
                 }
             });
-            document.getElementById('taskStatus').value = 'Pending'; // Ensure status resets to Pending
+            document.getElementById('taskStatus').value = 'Pending';
             checkOutTimeField.classList.add('hidden');
             newReservationIdField.classList.add('hidden');
             assignedToField.classList.remove('hidden');
@@ -750,7 +1021,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveTask(task) {
         try {
             await db.ref(`tasks/${task.id}`).set(task);
-            console.log(`Task saved with status: ${task.status}`);
         } catch (error) {
             console.error("Error saving task:", error);
             throw error;
@@ -760,7 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function updateTask(updatedTask) {
         try {
             await db.ref(`tasks/${updatedTask.id}`).set(updatedTask);
-            console.log(`Task updated with status: ${updatedTask.status}`);
         } catch (error) {
             console.error("Error updating task:", error);
             throw error;
@@ -839,28 +1108,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 taskCard.classList.add('archive-task-card');
                 taskCard.innerHTML = `
                     <div class="archive-task-content">
-                        <div class="archive-task-header">
-                            <div class="archive-task-title">R#${task.roomNumber || 'N/A'} - ${task.category}</div>
-                            <div class="archive-task-meta">
-                                <span><i class="fas fa-user mr-1"></i>${task.assignedTo || 'Unassigned'}</span>
-                                <span><i class="fas fa-exclamation-circle mr-1"></i>${task.priority}</span>
-                                <span><i class="fas fa-info-circle mr-1"></i>${task.status}</span>
-                            </div>
+                        <div class="archive-task-title">
+                            R#${task.roomNumber || 'N/A'} - ${task.category}
+                        </div>
+                        <div class="archive-task-meta">
+                            <span><i class="fas fa-user mr-1 text-teal-500"></i>${task.assignedTo || 'Unassigned'}</span>
+                            <span><i class="fas fa-exclamation-circle mr-1 text-teal-500"></i>${task.priority}</span>
+                            <span><i class="fas fa-info-circle mr-1 text-teal-500"></i>${task.status}</span>
                         </div>
                         <div class="archive-task-details">
                             <p>${task.details || 'No details'}</p>
                         </div>
-                        <div class="archive-timestamp">Archived: ${new Date(task.archivedAt).toLocaleString()}</div>
+                        <div class="archive-timestamp">
+                            Archived: ${new Date(task.archivedAt).toLocaleString()}
+                        </div>
                     </div>
                     <div class="archive-task-actions">
-                        <button class="unarchive-btn" data-id="${task.id}" data-tooltip="Unarchive"><i class="fas fa-undo"></i></button>
-                        <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete"><i class="fas fa-trash"></i></button>
+                        <button class="unarchive-btn" data-id="${task.id}" data-tooltip="Unarchive">
+                            <i class="fas fa-undo text-base"></i>
+                        </button>
+                        <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete">
+                            <i class="fas fa-trash text-base"></i>
+                        </button>
                     </div>
                 `;
                 archiveList.appendChild(taskCard);
             });
 
-            // Add event listeners for unarchive and delete buttons
             archiveList.querySelectorAll('.unarchive-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const taskId = btn.dataset.id;
@@ -883,6 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             await db.ref(`archive/${taskId}`).remove();
                             await logHistory(taskId, 'Archived task deleted');
+                            renderArchive();
                         } catch (error) {
                             console.error("Error deleting archived task:", error);
                             alert('Error deleting archived task.');
@@ -895,245 +1170,19 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Error rendering archive.');
         }
     }
-
-    function createTaskElement(task) {
-        console.log(`Rendering task ${task.id} with status: ${task.status}`);
-        const taskElement = document.createElement('div');
-        taskElement.classList.add('task-card', `priority-${task.priority}`);
-        taskElement.dataset.id = task.id;
-        taskElement.draggable = true;
-        if (task.status === 'Completed') {
-            taskElement.classList.add('completed');
-        }
-        if (task.dueDate && new Date(`${task.dueDate} ${task.dueTime || '23:59'}`) < new Date() && task.status !== 'Completed') {
-            taskElement.classList.add('overdue');
-        }
-
-        taskElement.innerHTML = `
-            <div class="task-content">
-                <div class="task-header">
-                    <div class="task-title">R#${task.roomNumber || 'N/A'} ${task.newReservationId ? `(${task.newReservationId})` : ''}</div>
-                    <div class="task-meta">
-                        <span><i class="fas fa-user"></i>${task.assignedTo || 'Unassigned'}</span>
-                        <span><i class="fas fa-exclamation-circle"></i>${task.priority}</span>
-                        <span><i class="fas fa-info-circle"></i>
-                            <input type="checkbox" class="status-checkbox" ${task.status === 'Completed' ? 'checked' : ''} title="Toggle Completed/Pending">
-                            <span class="status-${task.status.toLowerCase().replace(' ', '-')}">${task.status}</span>
-                        </span>
-                        ${task.dueDate ? `<span><i class="fas fa-calendar-alt"></i>${task.dueDate} ${task.dueTime || ''}</span>` : ''}
-                        ${task.checkOutTime ? `<span><i class="fas fa-clock"></i>${task.checkOutTime}</span>` : ''}
-                    </div>
-                </div>
-                <div class="task-details">${task.details || 'No details'}</div>
-                <div class="tags-container">
-                    ${task.tags && task.tags.length > 0 ? task.tags.map(tag => `<span class="tag-item">${tag}</span>`).join('') : ''}
-                </div>
-                <div class="comments-container">
-                    ${task.comments && task.comments.length > 0 ? task.comments.map((comment, index) => `
-                        <div class="comment-item">
-                            <div class="comment-text">${comment.text}</div>
-                            <div class="comment-timestamp">${new Date(comment.timestamp).toLocaleString()}</div>
-                            <div class="comment-actions">
-                                <button class="edit-comment-btn" data-comment-index="${index}" data-tooltip="Edit Comment"><i class="fas fa-edit"></i></button>
-                                <button class="delete-comment-btn" data-comment-index="${index}" data-tooltip="Delete Comment"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                    `).join('') : '<p>No comments</p>'}
-                </div>
-                <div class="task-action-bar">
-                    <button class="comment-btn" data-id="${task.id}" data-tooltip="Add Comment"><i class="fas fa-comment"></i></button>
-                    <button class="attach-btn" data-id="${task.id}" data-tooltip="Attach"><i class="fas fa-paperclip"></i></button>
-                    <button class="history-btn" data-id="${task.id}" data-tooltip="History"><i class="fas fa-history"></i></button>
-                    <button class="edit-btn" data-id="${task.id}" data-tooltip="Edit"><i class="fas fa-edit"></i></button>
-                    <button class="duplicate-btn" data-id="${task.id}" data-tooltip="Duplicate"><i class="fas fa-copy"></i></button>
-                    <button class="archive-btn" data-id="${task.id}" data-tooltip="Archive"><i class="fas fa-archive"></i></button>
-                    <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-            <div class="swipe-background"><i class="fas fa-archive"></i></div>
-        `;
-
-        // Status checkbox for toggling Pending/Completed
-        taskElement.querySelector('.status-checkbox').addEventListener('change', async (e) => {
-            console.log(`Status checkbox changed for task ${task.id}`);
-            try {
-                const taskData = await getTask(task.id);
-                const newStatus = e.target.checked ? 'Completed' : 'Pending';
-                taskData.status = newStatus;
-                await updateTask(taskData);
-                await logHistory(task.id, `Status changed to ${newStatus}`, {
-                    oldStatus: task.status,
-                    newStatus
-                });
-                // UI will update via Firebase on('value') listener
-            } catch (error) {
-                console.error("Error updating task status:", error);
-                alert('Error updating task status.');
-                e.target.checked = !e.target.checked; // Revert checkbox on error
-            }
-        });
-
-        // Drag events
-        taskElement.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', task.id);
-            taskElement.classList.add('dragging');
-        });
-
-        taskElement.addEventListener('dragend', () => {
-            taskElement.classList.remove('dragging');
-        });
-
-        // Swipe to archive
-        taskElement.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].clientX;
-        });
-
-        taskElement.addEventListener('touchmove', (e) => {
-            touchEndX = e.changedTouches[0].clientX;
-            const diff = touchStartX - touchEndX;
-            if (diff > 0 && diff < 60) {
-                taskElement.style.transform = `translateX(-${diff}px)`;
-                taskElement.classList.add('swiping');
-            }
-        });
-
-        taskElement.addEventListener('touchend', async () => {
-            const diff = touchStartX - touchEndX;
-            if (diff > 50) {
-                taskElement.classList.add('swiped');
-                setTimeout(async () => {
-                    await archiveTask(task.id);
-                    taskElement.classList.add('archived');
-                }, 400);
-            } else {
-                taskElement.style.transform = 'translateX(0)';
-                taskElement.classList.remove('swiping');
-            }
-        });
-
-        // Comment button: toggle visibility and add comment
-        taskElement.querySelector('.comment-btn').addEventListener('click', async () => {
-            console.log(`Comment button clicked for task ${task.id}`);
-            const commentsContainer = taskElement.querySelector('.comments-container');
-            const isActive = commentsContainer.classList.contains('active');
-            
-            if (isActive) {
-                // If comments are visible, prompt to add a new comment
-                const comment = prompt('Enter your comment (or cancel to just toggle visibility):');
-                if (comment) {
-                    const taskData = await getTask(task.id);
-                    taskData.comments = taskData.comments || [];
-                    taskData.comments.push({ text: comment, timestamp: new Date().toISOString() });
-                    await updateTask(taskData);
-                    await logHistory(task.id, 'Comment added', { comment });
-                }
-            } else {
-                // If comments are hidden, show them
-                commentsContainer.classList.add('active');
-            }
-        });
-
-        // Long press to hide comments (optional, for better UX)
-        taskElement.querySelector('.comment-btn').addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            console.log(`Right-click on comment button for task ${task.id}`);
-            const commentsContainer = taskElement.querySelector('.comments-container');
-            commentsContainer.classList.remove('active');
-        });
-
-        // Edit comment
-        taskElement.querySelectorAll('.edit-comment-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const index = btn.dataset.commentIndex;
-                const taskData = await getTask(task.id);
-                const newComment = prompt('Edit your comment:', taskData.comments[index].text);
-                if (newComment) {
-                    taskData.comments[index].text = newComment;
-                    taskData.comments[index].timestamp = new Date().toISOString();
-                    await updateTask(taskData);
-                    await logHistory(task.id, 'Comment edited', { comment: newComment });
-                }
-            });
-        });
-
-        // Delete comment
-        taskElement.querySelectorAll('.delete-comment-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                if (confirm('Are you sure you want to delete this comment?')) {
-                    const index = btn.dataset.commentIndex;
-                    const taskData = await getTask(task.id);
-                    const deletedComment = taskData.comments.splice(index, 1)[0];
-                    await updateTask(taskData);
-                    await logHistory(task.id, 'Comment deleted', { comment: deletedComment.text });
-                }
-            });
-        });
-
-        // Other task actions
-        taskElement.querySelector('.edit-btn').addEventListener('click', async () => {
-            const taskData = await getTask(task.id);
-            openTaskModal('Edit Task', 'Update Task', null, taskData);
-        });
-
-        taskElement.querySelector('.duplicate-btn').addEventListener('click', async () => {
-            const taskData = await getTask(task.id);
-            const newTask = { ...taskData, id: Date.now(), createdAt: new Date().toISOString(), comments: [], history: [], attachments: [] };
-            await saveTask(newTask);
-            await logHistory(newTask.id, 'Task duplicated');
-            await logRoomUsage(newTask.roomNumber, newTask.category, newTask.assignedTo);
-        });
-
-        taskElement.querySelector('.archive-btn').addEventListener('click', async () => {
-            await archiveTask(task.id);
-            taskElement.classList.add('archived');
-        });
-
-        taskElement.querySelector('.delete-btn').addEventListener('click', async () => {
-            if (confirm('Are you sure you want to delete this task?')) {
-                await deleteTask(task.id);
-                taskElement.classList.add('deleted');
-            }
-        });
-
-        taskElement.querySelector('.attach-btn').addEventListener('click', () => {
-            alert('Attachment feature is under development.');
-        });
-
-        taskElement.querySelector('.history-btn').addEventListener('click', async () => {
-            const historyList = document.getElementById('historyList');
-            historyList.innerHTML = '';
-            const snapshot = await db.ref('history').once('value');
-            const history = snapshot.val() ? Object.values(snapshot.val()).filter(h => h.taskId === task.id) : [];
-            const groupedHistory = history.reduce((acc, entry) => {
-                const date = new Date(entry.timestamp).toLocaleDateString();
-                if (!acc[date]) acc[date] = [];
-                acc[date].push(entry);
-                return acc;
-            }, {});
-
-            Object.keys(groupedHistory).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
-                const group = document.createElement('div');
-                group.classList.add('history-group');
-                group.innerHTML = `<h3>${date}</h3>`;
-                groupedHistory[date].forEach(entry => {
-                    const item = document.createElement('div');
-                    item.classList.add('history-item', `history-${entry.action.toLowerCase().replace(' ', '-')}`);
-                    item.innerHTML = `
-                        <p><strong>${entry.action}</strong> at ${new Date(entry.timestamp).toLocaleTimeString()}</p>
-                        ${Object.keys(entry.details).length > 0 ? `<p>${JSON.stringify(entry.details, null, 2)}</p>` : ''}
-                    `;
-                    group.appendChild(item);
-                });
-                historyList.appendChild(group);
-            });
-
-            if (history.length === 0) {
-                historyList.innerHTML = '<p>No history available.</p>';
-            }
-
-            historyModal.classList.remove('隐患');
-        });
-
-        return taskElement;
-    }
 });
+
+// Drag and Drop Handlers
+function allowDrop(e) {
+    e.preventDefault();
+}
+
+function drop(e) {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData('text/plain');
+    const targetColumn = e.target.closest('.task-column');
+    if (targetColumn) {
+        const taskElement = document.querySelector(`[data-id="${taskId}"]`);
+        targetColumn.appendChild(taskElement);
+    }
+}
