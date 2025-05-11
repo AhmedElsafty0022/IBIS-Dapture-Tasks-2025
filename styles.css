@@ -123,7 +123,6 @@ body {
 }
 
 .task-checkout-time {
-    background: var(--primary);
     color: white;
     padding: 2px 8px;
     border-radius: 9999px;
@@ -134,7 +133,51 @@ body {
     gap: 3px;
 }
 
-.dark .task-checkout-time {
+/* Checkout Time Background Colors */
+.task-checkout-time[data-time="13:00"] {
+    background: var(--danger);
+}
+.task-checkout-time[data-time="13:00"]:hover {
+    background: var(--danger-hover);
+}
+.task-checkout-time[data-time="14:00"] {
+    background: var(--success);
+}
+.task-checkout-time[data-time="14:00"]:hover {
+    background: var(--success); /* Slightly darker green could be added if needed */
+}
+.task-checkout-time[data-time="16:00"] {
+    background: var(--warning);
+}
+.task-checkout-time[data-time="16:00"]:hover {
+    background: var(--warning-hover);
+}
+.task-checkout-time[data-time="18:00"] {
+    background: var(--info);
+}
+.task-checkout-time[data-time="18:00"]:hover {
+    background: var(--info); /* Slightly darker blue could be added if needed */
+}
+.task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]) {
+    background: var(--primary);
+}
+.task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]):hover {
+    background: var(--primary-hover);
+}
+
+.dark .task-checkout-time[data-time="13:00"] {
+    background: var(--danger-hover);
+}
+.dark .task-checkout-time[data-time="14:00"] {
+    background: var(--success); /* Slightly darker green for dark mode if needed */
+}
+.dark .task-checkout-time[data-time="16:00"] {
+    background: var(--warning-hover);
+}
+.dark .task-checkout-time[data-time="18:00"] {
+    background: var(--info); /* Slightly darker blue for dark mode if needed */
+}
+.dark .task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]) {
     background: var(--primary-hover);
 }
 
@@ -228,7 +271,7 @@ body {
     display: none;
     flex-direction: column;
     gap: 8px;
-    margin-top: 10px;
+    margin EDULE-top: 10px;
 }
 
 .comments-container.active {
@@ -525,4 +568,47 @@ body {
 
 .dark ::-webkit-scrollbar-thumb:hover {
     background: #5a677a;
+}
+
+/* Autocomplete Styles */
+.autocomplete-container {
+    position: relative;
+    width: 100%;
+}
+
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 20;
+}
+
+.dark .autocomplete-list {
+    background: var(--bg-dark);
+    border-color: var(--border-dark);
+}
+
+.autocomplete-list div {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-light);
+}
+
+.dark .autocomplete-list div {
+    color: var(--text-dark);
+}
+
+.autocomplete-list div:hover {
+    background: var(--bg-light);
+}
+
+.dark .autocomplete-list div:hover {
+    background: #4b5563;
 }

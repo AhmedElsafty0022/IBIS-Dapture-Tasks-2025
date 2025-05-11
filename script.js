@@ -26,11 +26,22 @@ document.addEventListener('DOMContentLoaded', () => {
         'Mr. Francis'
     ];
 
+    // Predefined Tags
+    const predefinedTags = [
+        'LCO',
+        '1PM',
+        '2PM',
+        '4PM',
+        '6PM',
+        'Dayuse'
+    ];
+
     // Global variables
     let editingTaskId = null;
     let touchStartX = 0;
     let touchEndX = 0;
     let companies = [...predefinedCompanies];
+    let tags = [...predefinedTags];
     let suggestedTasks = [];
 
     // DOM elements
@@ -59,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const importTasksBtn = document.getElementById('importTasksBtn');
     const importFileInput = document.getElementById('importFileInput');
     const taskAssignedTo = document.getElementById('taskAssignedTo');
+    const taskTags = document.getElementById('taskTags');
     const reminderModal = document.getElementById('reminderModal');
     const skipReminderBtn = document.getElementById('skipReminderBtn');
     const confirmReminderBtn = document.getElementById('confirmReminderBtn');
@@ -69,11 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('dark');
     }
 
-    // Load companies from Firebase
+    // Load companies and tags from Firebase
     db.ref('companies').on('value', (snapshot) => {
         const customCompanies = snapshot.val() ? Object.values(snapshot.val()) : [];
         companies = [...new Set([...predefinedCompanies, ...customCompanies])];
         console.log('Loaded companies:', companies);
+    });
+
+    db.ref('tags').on('value', (snapshot) => {
+        const customTags = snapshot.val() ? Object.values(snapshot.val()) : [];
+        tags = [...new Set([...predefinedTags, ...customTags])];
+        console.log('Loaded tags:', tags);
     });
 
     // Initial load of tasks and check reminders
@@ -116,12 +134,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const archiveSnapshot = await db.ref('archive').once('value');
             const historySnapshot = await db.ref('history').once('value');
             const companiesSnapshot = await db.ref('companies').once('value');
+            const tagsSnapshot = await db.ref('tags').once('value');
             const roomUsageSnapshot = await db.ref('roomUsage').once('value');
             const data = {
                 tasks: tasksSnapshot.val() ? Object.values(tasksSnapshot.val()) : [],
                 archive: archiveSnapshot.val() ? Object.values(archiveSnapshot.val()) : [],
                 history: historySnapshot.val() ? Object.values(historySnapshot.val()) : [],
                 companies: companiesSnapshot.val() ? Object.values(companiesSnapshot.val()) : [],
+                tags: tagsSnapshot.val() ? Object.values(tagsSnapshot.val()) : [],
                 roomUsage: roomUsageSnapshot.val() ? Object.values(roomUsageSnapshot.val()) : []
             };
             const dataStr = JSON.stringify(data, null, 2);
@@ -145,53 +165,59 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
-                if (data.tasks) {
-                    const sanitizedTasks = data.tasks.map(task => {
-                        const { linkedRoomId, ...rest } = task;
-                        return rest;
-                    });
-                    await db.ref('tasks').set(sanitizedTasks.reduce((acc, task) => {
-                        acc[task.id] = task;
-                        return acc;
-                    }, {}));
-                }
-                if (data.archive) {
-                    const sanitizedArchive = data.archive.map(task => {
-                        const { linkedRoomId, ...rest } = task;
-                        return rest;
-                    });
-                    await db.ref('archive').set(sanitizedArchive.reduce((acc, task) => {
-                        acc[task.id] = task;
-                        return acc;
-                    }, {}));
-                }
-                if (data.history) {
-                    await db.ref('history').set(data.history.reduce((acc, entry) => {
-                        acc[Date.now() + Math.random()] = entry;
-                        return acc;
-                    }, {}));
-                }
-                if (data.companies) {
-                    await db.ref('companies').set(data.companies.reduce((acc, company, index) => {
-                        acc[index] = company;
-                        return acc;
-                    }, {}));
-                }
-                if (data.roomUsage) {
-                    await db.ref('roomUsage').set(data.roomUsage.reduce((acc, usage, index) => {
-                        acc[index] = usage;
-                        return acc;
-                    }, {}));
-                }
-                alert('Data imported successfully!');
-            } catch (error) {
-                console.error("Error importing data:", error);
-                alert('Error importing data. Please check the file format.');
-            }
-        };
+       reader.onload = async (event) => {
+    try {
+        const data = JSON.parse(event.target.result);
+        if (data.tasks) {
+            const sanitizedTasks = data.tasks.map(task => {
+                const { linkedRoomId, ...rest } = task;
+                return rest;
+            });
+            await db.ref('tasks').set(sanitizedTasks.reduce((acc, task) => {
+                acc[task.id] = task;
+                return acc;
+            }, {}));
+        }
+        if (data.archive) {
+            const sanitizedArchive = data.archive.map(task => {
+                const { linkedRoomId, ...rest } = task;
+                return rest;
+            });
+            await db.ref('archive').set(sanitizedArchive.reduce((acc, task) => {
+                acc[task.id] = task;
+                return acc;
+            }, {}));
+        }
+        if (data.history) {
+            await db.ref('history').set(data.history.reduce((acc, entry) => {
+                acc[Date.now() + Math.random()] = entry;
+                return acc;
+            }, {}));
+        }
+        if (data.companies) {
+            await db.ref('companies').set(data.companies.reduce((acc, company, index) => {
+                acc[index] = company;
+                return acc;
+            }, {}));
+        }
+        if (data.tags) {
+            await db.ref('tags').set(data.tags.reduce((acc, tag, index) => {
+                acc[index] = tag;
+                return acc;
+            }, {}));
+        }
+        if (data.roomUsage) {
+            await db.ref('roomUsage').set(data.roomUsage.reduce((acc, usage, index) => {
+                acc[index] = usage;
+                return acc;
+            }, {}));
+        }
+        alert('Data imported successfully!');
+    } catch (error) {
+        console.error("Error importing data:", error);
+        alert('Error importing data. Please check the file format.');
+    }
+};
         reader.readAsText(file);
     });
 
@@ -233,6 +259,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     taskAssignedTo.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.stopPropagation();
+        }
+    });
+
+    // Autocomplete for Tags
+    let tagAutocompleteTimeout;
+    const tagAutocompleteContainer = document.createElement('div');
+    tagAutocompleteContainer.classList.add('autocomplete-container');
+    taskTags.parentNode.insertBefore(tagAutocompleteContainer, taskTags);
+    tagAutocompleteContainer.appendChild(taskTags);
+
+    const tagAutocompleteList = document.createElement('div');
+    tagAutocompleteList.classList.add('autocomplete-list');
+    tagAutocompleteContainer.appendChild(tagAutocompleteList);
+
+    taskTags.addEventListener('input', () => {
+        clearTimeout(tagAutocompleteTimeout);
+        tagAutocompleteTimeout = setTimeout(() => {
+            const query = taskTags.value.trim().toLowerCase();
+            tagAutocompleteList.innerHTML = '';
+            if (!query) return;
+            const matches = tags.filter(tag => tag.toLowerCase().includes(query));
+            if (matches.length === 0) return;
+            matches.forEach(tag => {
+                const div = document.createElement('div');
+                div.textContent = tag;
+                div.addEventListener('click', () => {
+                    const currentTags = taskTags.value.split(',').map(t => t.trim()).filter(t => t);
+                    if (!currentTags.includes(tag)) {
+                        currentTags.push(tag);
+                        taskTags.value = currentTags.join(', ');
+                    }
+                    tagAutocompleteList.innerHTML = '';
+                });
+                tagAutocompleteList.appendChild(div);
+            });
+        }, 300);
+    });
+
+    taskTags.addEventListener('blur', () => {
+        setTimeout(() => {
+            tagAutocompleteList.innerHTML = '';
+        }, 200);
+    });
+
+    taskTags.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.stopPropagation();
         }
@@ -298,12 +371,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear All Tasks
     clearTasksBtn?.addEventListener('click', async () => {
-        if (confirm('Are you sure you want to clear all tasks, archives, history, companies, and room usage data?')) {
+        if (confirm('Are you sure you want to clear all tasks, archives, history, companies, tags, and room usage data?')) {
             try {
                 await db.ref('tasks').remove();
                 await db.ref('archive').remove();
                 await db.ref('history').remove();
                 await db.ref('companies').remove();
+                await db.ref('tags').remove();
                 await db.ref('roomUsage').remove();
                 alert('All data cleared!');
             } catch (error) {
@@ -355,43 +429,44 @@ document.addEventListener('DOMContentLoaded', () => {
         reminderModal.classList.add('hidden');
     });
 
-    confirmReminderBtn?.addEventListener('click', async () => {
-        try {
-            const checkboxes = reminderList.querySelectorAll('input[type="checkbox"]:checked');
-            for (let checkbox of checkboxes) {
-                const suggestion = suggestedTasks.find(s => s.id === checkbox.dataset.id);
-                if (suggestion) {
-                    const task = {
-                        id: Date.now(),
-                        roomNumber: suggestion.roomNumber,
-                        newReservationId: suggestion.category === 'extensions' ? `Resv#${Math.floor(1000 + Math.random() * 9000)}` : '',
-                        category: suggestion.category,
-                        checkOutTime: suggestion.category === 'checkout' ? '12:00' : '',
-                        details: suggestion.details || '',
-                        dueDate: new Date().toISOString().split('T')[0],
-                        dueTime: '',
-                        priority: 'medium',
-                        assignedTo: suggestion.assignedTo || '',
-                        status: 'Pending',
-                        tags: [],
-                        createdAt: new Date().toISOString(),
-                        comments: [],
-                        history: [],
-                        attachments: [],
-                        order: 0
-                    };
-                    await saveTask(task);
-                    await logHistory(task.id, `Task created from reminder`);
-                    await logRoomUsage(task.roomNumber, task.category, task.assignedTo);
-                }
+    // Inside the confirmReminderBtn event listener, replace the entire block with:
+confirmReminderBtn?.addEventListener('click', async () => {
+    try {
+        const checkboxes = reminderList.querySelectorAll('input[type="checkbox"]:checked');
+        for (let checkbox of checkboxes) {
+            const suggestion = suggestedTasks.find(s => s.id === checkbox.dataset.id);
+            if (suggestion) {
+                const task = {
+                    id: Date.now(),
+                    roomNumber: suggestion.roomNumber,
+                    newReservationId: suggestion.category === 'extensions' ? `Resv#${Math.floor(1000 + Math.random() * 9000)}` : '',
+                    category: suggestion.category,
+                    checkOutTime: suggestion.category === 'checkout' ? '12:00' : '',
+                    details: suggestion.details || '',
+                    dueDate: new Date().toISOString().split('T')[0],
+                    dueTime: '',
+                    priority: 'medium',
+                    assignedTo: suggestion.assignedTo || '',
+                    status: 'Pending',
+                    tags: [],
+                    createdAt: new Date().toISOString(),
+                    comments: [],
+                    history: [],
+                    attachments: [],
+                    order: 0
+                };
+                await saveTask(task);
+                await logHistory(task.id, `Task created from reminder`);
+                await logRoomUsage(task.roomNumber, task.category, task.assignedTo);
             }
-            reminderModal.classList.add('hidden');
-            renderTasks();
-        } catch (error) {
-            console.error("Error adding suggested tasks:", error);
-            alert('Error adding suggested tasks.');
         }
-    });
+        reminderModal.classList.add('hidden');
+        renderTasks();
+    } catch (error) {
+        console.error("Error adding suggested tasks:", error);
+        alert('Error adding suggested tasks.');
+    }
+});
 
     // Dynamically Show/Hide Fields Based on Category
     taskCategory?.addEventListener('change', () => {
@@ -429,16 +504,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const priority = document.getElementById('taskPriority').value;
         const assignedTo = (category === 'handover' || category === 'guestrequests') ? '' : document.getElementById('taskAssignedTo').value.trim();
         const status = document.getElementById('taskStatus').value;
-        const tags = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+        let taskTagsInput = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
 
-        // Save new company to Firebase if not already present
-        if (assignedTo && !companies.includes(assignedTo)) {
+        // Save new tags to Firebase if not already present
+        const newTags = taskTagsInput.filter(tag => !tags.includes(tag));
+        if (newTags.length > 0) {
             try {
-                await db.ref('companies').push(assignedTo);
-                companies.push(assignedTo);
+                for (const tag of newTags) {
+                    await db.ref('tags').push(tag);
+                }
+                tags.push(...newTags);
             } catch (error) {
-                console.error("Error saving new company:", error);
-                alert('Error saving new company.');
+                console.error("Error saving new tags:", error);
+                alert('Error saving new tags.');
             }
         }
 
@@ -454,13 +532,24 @@ document.addEventListener('DOMContentLoaded', () => {
             priority,
             assignedTo,
             status,
-            tags,
+            tags: taskTagsInput,
             createdAt: new Date().toISOString(),
             comments: editingTaskId ? (await getTask(editingTaskId))?.comments || [] : [],
             history: editingTaskId ? (await getTask(editingTaskId))?.history || [] : [],
             attachments: editingTaskId ? (await getTask(editingTaskId))?.attachments || [] : [],
             order: 0
         };
+
+        // Save new company to Firebase if not already present
+        if (assignedTo && !companies.includes(assignedTo)) {
+            try {
+                await db.ref('companies').push(assignedTo);
+                companies.push(assignedTo);
+            } catch (error) {
+                console.error("Error saving new company:", error);
+                alert('Error saving new company.');
+            }
+        }
 
         try {
             if (editingTaskId) {
@@ -579,7 +668,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 tasks = tasks.filter(task =>
                     task.roomNumber.toLowerCase().includes(searchQuery) ||
                     task.details.toLowerCase().includes(searchQuery) ||
-                    task.assignedTo.toLowerCase().includes(searchQuery)
+                    task.assignedTo.toLowerCase().includes(searchQuery) ||
+                    (task.tags && task.tags.some(tag => tag.toLowerCase().includes(searchQuery)))
                 );
             }
 
@@ -686,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${task.newReservationId ? `<span class="task-reservation-id ml-2 text-xs text-gray-500 dark:text-gray-400">${task.newReservationId}</span>` : ''}
                     </div>
                     <div class="task-meta">
-                        ${task.checkOutTime ? `<span class="task-checkout-time"><i class="fas fa-clock mr-1 text-teal-500"></i>${checkOutTimeDisplay}</span>` : ''}
+                        ${task.checkOutTime ? `<span class="task-checkout-time" data-time="${task.checkOutTime}"><i class="fas fa-clock mr-1 text-white"></i>${checkOutTimeDisplay}</span>` : ''}
                         <span><i class="fas fa-user mr-1 text-teal-500"></i>${task.assignedTo || 'Unassigned'}</span>
                         <span><i class="fas fa-exclamation-circle mr-1 text-teal-500"></i>${task.priority}</span>
                         <span class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}">
@@ -1011,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             newReservationIdField.classList.add('hidden');
             assignedToField.classList.remove('hidden');
             autocompleteList.innerHTML = '';
+            tagAutocompleteList.innerHTML = '';
             editingTaskId = null;
         } catch (error) {
             console.error("Error resetting form:", error);
