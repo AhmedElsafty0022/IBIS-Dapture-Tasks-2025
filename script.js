@@ -115,14 +115,68 @@ document.addEventListener('DOMContentLoaded', () => {
             onEnd: async (evt) => {
                 const taskId = evt.item.dataset.id;
                 const newCategory = evt.to.id;
+                const originalCategory = evt.from.id;
+                console.log(`Attempting to move task ${taskId} from ${originalCategory} to ${newCategory}`);
+
+                // Skip if moving within the same column
+                if (originalCategory === newCategory) return;
+
                 const task = await getTask(taskId);
-                if (task && task.category !== newCategory) {
-                    task.category = newCategory;
+                if (!task) {
+                    console.error(`Task ${taskId} not found`);
+                    alert('Error: Task not found.');
+                    renderTasks();
+                    return;
+                }
+
+                // Validate room number conflict for checkout or extensions
+                if (newCategory === 'checkout' || newCategory === 'extensions') {
+                    const snapshot = await db.ref('tasks').once('value');
+                    const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+                    const conflictingTask = tasks.find(t => 
+                        t.roomNumber === task.roomNumber && 
+                        (t.category === 'checkout' || t.category === 'extensions') &&
+                        t.id !== taskId
+                    );
+                    if (conflictingTask) {
+                        console.log(`Conflict: Room ${task.roomNumber} already in ${conflictingTask.category}`);
+                        alert(`Room ${task.roomNumber} is already in ${conflictingTask.category}. Please resolve the conflict.`);
+                        // Revert to original column
+                        const originalColumn = document.getElementById(originalCategory);
+                        originalColumn.appendChild(evt.item);
+                        return;
+                    }
+                }
+
+                // Update task fields based on new category
+                task.category = newCategory;
+                if (newCategory === 'checkout') {
+                    task.checkOutTime = task.checkOutTime || '12:00';
+                    task.newReservationId = '';
+                } else if (newCategory === 'extensions') {
+                    task.newReservationId = task.newReservationId || `Resv#${Math.floor(1000 + Math.random() * 9000)}`;
+                    task.checkOutTime = '';
+                } else {
+                    task.checkOutTime = '';
+                    task.newReservationId = '';
+                    task.assignedTo = '';
+                }
+
+                try {
                     await updateTask(task);
                     await logHistory(taskId, `Task moved to ${newCategory}`);
+                    // Update task order in the new column
+                    const tasksInColumn = Array.from(evt.to.children).map(child => child.dataset.id);
+                    await updateTaskOrder(newCategory, tasksInColumn);
+                    console.log(`Task ${taskId} successfully moved to ${newCategory}`);
+                } catch (error) {
+                    console.error("Error moving task:", error);
+                    alert('Error moving task. Reverting changes.');
+                    // Revert to original column on error
+                    const originalColumn = document.getElementById(originalCategory);
+                    originalColumn.appendChild(evt.item);
+                    renderTasks();
                 }
-                const tasksInColumn = Array.from(evt.to.children).map(child => child.dataset.id);
-                await updateTaskOrder(newCategory, tasksInColumn);
             }
         });
     });
@@ -165,59 +219,59 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-       reader.onload = async (event) => {
-    try {
-        const data = JSON.parse(event.target.result);
-        if (data.tasks) {
-            const sanitizedTasks = data.tasks.map(task => {
-                const { linkedRoomId, ...rest } = task;
-                return rest;
-            });
-            await db.ref('tasks').set(sanitizedTasks.reduce((acc, task) => {
-                acc[task.id] = task;
-                return acc;
-            }, {}));
-        }
-        if (data.archive) {
-            const sanitizedArchive = data.archive.map(task => {
-                const { linkedRoomId, ...rest } = task;
-                return rest;
-            });
-            await db.ref('archive').set(sanitizedArchive.reduce((acc, task) => {
-                acc[task.id] = task;
-                return acc;
-            }, {}));
-        }
-        if (data.history) {
-            await db.ref('history').set(data.history.reduce((acc, entry) => {
-                acc[Date.now() + Math.random()] = entry;
-                return acc;
-            }, {}));
-        }
-        if (data.companies) {
-            await db.ref('companies').set(data.companies.reduce((acc, company, index) => {
-                acc[index] = company;
-                return acc;
-            }, {}));
-        }
-        if (data.tags) {
-            await db.ref('tags').set(data.tags.reduce((acc, tag, index) => {
-                acc[index] = tag;
-                return acc;
-            }, {}));
-        }
-        if (data.roomUsage) {
-            await db.ref('roomUsage').set(data.roomUsage.reduce((acc, usage, index) => {
-                acc[index] = usage;
-                return acc;
-            }, {}));
-        }
-        alert('Data imported successfully!');
-    } catch (error) {
-        console.error("Error importing data:", error);
-        alert('Error importing data. Please check the file format.');
-    }
-};
+        reader.onload = async (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (data.tasks) {
+                    const sanitizedTasks = data.tasks.map(task => {
+                        const { linkedRoomId, ...rest } = task;
+                        return rest;
+                    });
+                    await db.ref('tasks').set(sanitizedTasks.reduce((acc, task) => {
+                        acc[task.id] = task;
+                        return acc;
+                    }, {}));
+                }
+                if (data.archive) {
+                    const sanitizedArchive = data.archive.map(task => {
+                        const { linkedRoomId, ...rest } = task;
+                        return rest;
+                    });
+                    await db.ref('archive').set(sanitizedArchive.reduce((acc, task) => {
+                        acc[task.id] = task;
+                        return acc;
+                    }, {}));
+                }
+                if (data.history) {
+                    await db.ref('history').set(data.history.reduce((acc, entry) => {
+                        acc[Date.now() + Math.random()] = entry;
+                        return acc;
+                    }, {}));
+                }
+                if (data.companies) {
+                    await db.ref('companies').set(data.companies.reduce((acc, company, index) => {
+                        acc[index] = company;
+                        return acc;
+                    }, {}));
+                }
+                if (data.tags) {
+                    await db.ref('tags').set(data.tags.reduce((acc, tag, index) => {
+                        acc[index] = tag;
+                        return acc;
+                    }, {}));
+                }
+                if (data.roomUsage) {
+                    await db.ref('roomUsage').set(data.roomUsage.reduce((acc, usage, index) => {
+                        acc[index] = usage;
+                        return acc;
+                    }, {}));
+                }
+                alert('Data imported successfully!');
+            } catch (error) {
+                console.error("Error importing data:", error);
+                alert('Error importing data. Please check the file format.');
+            }
+        };
         reader.readAsText(file);
     });
 
@@ -429,44 +483,43 @@ document.addEventListener('DOMContentLoaded', () => {
         reminderModal.classList.add('hidden');
     });
 
-    // Inside the confirmReminderBtn event listener, replace the entire block with:
-confirmReminderBtn?.addEventListener('click', async () => {
-    try {
-        const checkboxes = reminderList.querySelectorAll('input[type="checkbox"]:checked');
-        for (let checkbox of checkboxes) {
-            const suggestion = suggestedTasks.find(s => s.id === checkbox.dataset.id);
-            if (suggestion) {
-                const task = {
-                    id: Date.now(),
-                    roomNumber: suggestion.roomNumber,
-                    newReservationId: suggestion.category === 'extensions' ? `Resv#${Math.floor(1000 + Math.random() * 9000)}` : '',
-                    category: suggestion.category,
-                    checkOutTime: suggestion.category === 'checkout' ? '12:00' : '',
-                    details: suggestion.details || '',
-                    dueDate: new Date().toISOString().split('T')[0],
-                    dueTime: '',
-                    priority: 'medium',
-                    assignedTo: suggestion.assignedTo || '',
-                    status: 'Pending',
-                    tags: [],
-                    createdAt: new Date().toISOString(),
-                    comments: [],
-                    history: [],
-                    attachments: [],
-                    order: 0
-                };
-                await saveTask(task);
-                await logHistory(task.id, `Task created from reminder`);
-                await logRoomUsage(task.roomNumber, task.category, task.assignedTo);
+    confirmReminderBtn?.addEventListener('click', async () => {
+        try {
+            const checkboxes = reminderList.querySelectorAll('input[type="checkbox"]:checked');
+            for (let checkbox of checkboxes) {
+                const suggestion = suggestedTasks.find(s => s.id === checkbox.dataset.id);
+                if (suggestion) {
+                    const task = {
+                        id: Date.now(),
+                        roomNumber: suggestion.roomNumber,
+                        newReservationId: suggestion.category === 'extensions' ? `Resv#${Math.floor(1000 + Math.random() * 9000)}` : '',
+                        category: suggestion.category,
+                        checkOutTime: suggestion.category === 'checkout' ? '12:00' : '',
+                        details: suggestion.details || '',
+                        dueDate: new Date().toISOString().split('T')[0],
+                        dueTime: '',
+                        priority: 'medium',
+                        assignedTo: suggestion.assignedTo || '',
+                        status: 'Pending',
+                        tags: [],
+                        createdAt: new Date().toISOString(),
+                        comments: [],
+                        history: [],
+                        attachments: [],
+                        order: 0
+                    };
+                    await saveTask(task);
+                    await logHistory(task.id, `Task created from reminder`);
+                    await logRoomUsage(task.roomNumber, task.category, task.assignedTo);
+                }
             }
+            reminderModal.classList.add('hidden');
+            renderTasks();
+        } catch (error) {
+            console.error("Error adding suggested tasks:", error);
+            alert('Error adding suggested tasks.');
         }
-        reminderModal.classList.add('hidden');
-        renderTasks();
-    } catch (error) {
-        console.error("Error adding suggested tasks:", error);
-        alert('Error adding suggested tasks.');
-    }
-});
+    });
 
     // Dynamically Show/Hide Fields Based on Category
     taskCategory?.addEventListener('change', () => {
@@ -505,6 +558,21 @@ confirmReminderBtn?.addEventListener('click', async () => {
         const assignedTo = (category === 'handover' || category === 'guestrequests') ? '' : document.getElementById('taskAssignedTo').value.trim();
         const status = document.getElementById('taskStatus').value;
         let taskTagsInput = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+
+        // Validate room number for checkout and extensions
+        if (category === 'checkout' || category === 'extensions') {
+            const snapshot = await db.ref('tasks').once('value');
+            const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+            const conflictingTask = tasks.find(t => 
+                t.roomNumber === roomNumber && 
+                (t.category === 'checkout' || t.category === 'extensions') &&
+                (!editingTaskId || t.id !== editingTaskId)
+            );
+            if (conflictingTask) {
+                alert(`Room ${roomNumber} is already in ${conflictingTask.category}. Please resolve the conflict.`);
+                return;
+            }
+        }
 
         // Save new tags to Firebase if not already present
         const newTags = taskTagsInput.filter(tag => !tags.includes(tag));
@@ -1262,18 +1330,3 @@ confirmReminderBtn?.addEventListener('click', async () => {
         }
     }
 });
-
-// Drag and Drop Handlers
-function allowDrop(e) {
-    e.preventDefault();
-}
-
-function drop(e) {
-    e.preventDefault();
-    const taskId = e.dataTransfer.getData('text/plain');
-    const targetColumn = e.target.closest('.task-column');
-    if (targetColumn) {
-        const taskElement = document.querySelector(`[data-id="${taskId}"]`);
-        targetColumn.appendChild(taskElement);
-    }
-}
