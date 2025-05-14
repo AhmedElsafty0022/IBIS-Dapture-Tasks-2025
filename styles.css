@@ -19,6 +19,7 @@
     --shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 6px 10px -3px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --animation-duration: 0.3s;
 }
 
 /* Base Styles */
@@ -47,6 +48,18 @@ body {
     padding: 12px;
     display: flex;
     flex-direction: column;
+    animation: slideIn var(--animation-duration) ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .dark .task-card {
@@ -58,6 +71,41 @@ body {
 .task-card:hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-lg);
+}
+
+/* Progress Bar for Task Status */
+.progress-container {
+    margin: 8px 0;
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.dark .progress-container {
+    background: #4b5563;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width var(--transition);
+}
+
+.progress-bar.pending {
+    width: 10%;
+    background: #fef3c7;
+}
+
+.progress-bar.in-progress {
+    width: 50%;
+    background: #dbeafe;
+}
+
+.progress-bar.completed {
+    width: 100%;
+    background: #d1fae5;
 }
 
 /* Priority Indicators */
@@ -144,7 +192,7 @@ body {
     background: var(--success);
 }
 .task-checkout-time[data-time="14:00"]:hover {
-    background: var(--success); /* Slightly darker green could be added if needed */
+    background: var(--success);
 }
 .task-checkout-time[data-time="16:00"] {
     background: var(--warning);
@@ -156,7 +204,7 @@ body {
     background: var(--info);
 }
 .task-checkout-time[data-time="18:00"]:hover {
-    background: var(--info); /* Slightly darker blue could be added if needed */
+    background: var(--info);
 }
 .task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]) {
     background: var(--primary);
@@ -169,13 +217,13 @@ body {
     background: var(--danger-hover);
 }
 .dark .task-checkout-time[data-time="14:00"] {
-    background: var(--success); /* Slightly darker green for dark mode if needed */
+    background: var(--success);
 }
 .dark .task-checkout-time[data-time="16:00"] {
     background: var(--warning-hover);
 }
 .dark .task-checkout-time[data-time="18:00"] {
-    background: var(--info); /* Slightly darker blue for dark mode if needed */
+    background: var(--info);
 }
 .dark .task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]) {
     background: var(--primary-hover);
@@ -271,7 +319,7 @@ body {
     display: none;
     flex-direction: column;
     gap: 8px;
-    margin EDULE-top: 10px;
+    margin-top: 10px;
 }
 
 .comments-container.active {
@@ -448,6 +496,7 @@ body {
     box-shadow: var(--shadow);
     transition: var(--transition);
     border: 1px solid var(--border-light);
+    animation: slideIn var(--animation-duration) ease-out;
 }
 
 .dark .archive-task-card {
@@ -458,6 +507,21 @@ body {
 .archive-task-card:hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-lg);
+}
+
+.archive-task-card.deleting {
+    animation: fadeSlideOut var(--animation-duration) ease-in forwards;
+}
+
+@keyframes fadeSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(50px);
+    }
 }
 
 .archive-task-content {
@@ -508,6 +572,33 @@ body {
 /* Modal Enhancements */
 #taskModal, #archiveModal, #historyModal, #reminderModal {
     backdrop-filter: blur(5px);
+    animation: fadeIn var(--animation-duration) ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#taskModal.hidden, #archiveModal.hidden, #historyModal.hidden, #reminderModal.hidden {
+    animation: fadeOut var(--animation-duration) ease-in;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
 }
 
 #taskModal .bg-white, #archiveModal .bg-white, #historyModal .bg-white, #reminderModal .bg-white {

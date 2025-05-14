@@ -810,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createTaskElement(task) {
         const taskElement = document.createElement('div');
-        taskElement.classList.add('task-card', `priority-${task.priority}`);
+        taskElement.classList.add('task-card', `priority-${task.priority.toLowerCase()}`);
         taskElement.setAttribute('data-id', task.id);
         taskElement.setAttribute('draggable', 'true');
 
@@ -833,6 +833,9 @@ document.addEventListener('DOMContentLoaded', () => {
         task.comments = task.comments || [];
         task.attachments = task.attachments || [];
 
+        // Determine progress bar class based on status
+        const statusClass = task.status.toLowerCase().replace(' ', '-');
+
         taskElement.innerHTML = `
             <div class="swipe-background">
                 <i class="fas fa-archive icon text-xl text-gray-500"></i>
@@ -851,6 +854,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="fas fa-circle mr-1 text-xs"></i>${task.status}
                         </span>
                     </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar ${statusClass}"></div>
                 </div>
                 <div class="task-details">
                     <p>${task.details || 'No details'}</p>
@@ -1065,8 +1071,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         taskElement.querySelector('.delete-btn').addEventListener('click', async () => {
             if (confirm('Are you sure you want to delete this task?')) {
-                await deleteTask(task.id);
-                renderTasks();
+                taskElement.classList.add('swiped');
+                setTimeout(async () => {
+                    await deleteTask(task.id);
+                    renderTasks();
+                }, 300);
             }
         });
 
@@ -1314,9 +1323,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const taskId = btn.dataset.id;
                     if (confirm('Are you sure you want to delete this archived task?')) {
                         try {
-                            await db.ref(`archive/${taskId}`).remove();
-                            await logHistory(taskId, 'Archived task deleted');
-                            renderArchive();
+                            const taskCard = btn.closest('.archive-task-card');
+                            taskCard.classList.add('deleting');
+                            setTimeout(async () => {
+                                await db.ref(`archive/${taskId}`).remove();
+                                await logHistory(taskId, 'Archived task deleted');
+                                renderArchive();
+                            }, 300);
                         } catch (error) {
                             console.error("Error deleting archived task:", error);
                             alert('Error deleting archived task.');
