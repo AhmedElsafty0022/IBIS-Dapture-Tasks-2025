@@ -432,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitBtn?.click();
             }
         }
-        if (e.ctrlKey && e.key === 'a') {
+        if (e.ctrlKey && e.key === 'x') {
             e.preventDefault();
             viewArchiveBtn?.click();
         }
