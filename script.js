@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelBtn = document.getElementById('cancelBtn');
     const clearTasksBtn = document.getElementById('clearTasksBtn');
     const searchInput = document.getElementById('searchInput');
-    const sortTasks = document.getElementById('sportTasks');
+    const sortTasks = document.getElementById('sortTasks');
     const filterPriority = document.getElementById('filterPriority');
     const tagFilter = document.getElementById('tagFilter');
     const viewArchiveBtn = document.getElementById('viewArchiveBtn');
@@ -75,6 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const skipReminderBtn = document.getElementById('skipReminderBtn');
     const confirmReminderBtn = document.getElementById('confirmReminderBtn');
     const reminderList = document.getElementById('reminderList');
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const closeHelpBtn = document.getElementById('closeHelpBtn');
 
     // Load dark mode preference
     if (localStorage.getItem('darkMode') === 'enabled') {
@@ -109,76 +112,79 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize SortableJS for each task column
     const columns = ['checkout', 'extensions', 'handover', 'guestrequests'];
     columns.forEach(category => {
-        new Sortable(document.getElementById(category), {
-            group: 'tasks',
-            animation: 150,
-            onEnd: async (evt) => {
-                const taskId = evt.item.dataset.id;
-                const newCategory = evt.to.id;
-                const originalCategory = evt.from.id;
-                console.log(`Attempting to move task ${taskId} from ${originalCategory} to ${newCategory}`);
+        const column = document.getElementById(category);
+        if (column) {
+            new Sortable(column, {
+                group: 'tasks',
+                animation: 150,
+                onEnd: async (evt) => {
+                    const taskId = evt.item.dataset.id;
+                    const newCategory = evt.to.id;
+                    const originalCategory = evt.from.id;
+                    console.log(`Attempting to move task ${taskId} from ${originalCategory} to ${newCategory}`);
 
-                // Skip if moving within the same column
-                if (originalCategory === newCategory) return;
+                    // Skip if moving within the same column
+                    if (originalCategory === newCategory) return;
 
-                const task = await getTask(taskId);
-                if (!task) {
-                    console.error(`Task ${taskId} not found`);
-                    alert('Error: Task not found.');
-                    renderTasks();
-                    return;
-                }
-
-                // Validate room number conflict for checkout or extensions
-                if (newCategory === 'checkout' || newCategory === 'extensions') {
-                    const snapshot = await db.ref('tasks').once('value');
-                    const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
-                    const conflictingTask = tasks.find(t => 
-                        t.roomNumber === task.roomNumber && 
-                        (t.category === 'checkout' || t.category === 'extensions') &&
-                        t.id !== taskId
-                    );
-                    if (conflictingTask) {
-                        console.log(`Conflict: Room ${task.roomNumber} already in ${conflictingTask.category}`);
-                        alert(`Room ${task.roomNumber} is already in ${conflictingTask.category}. Please resolve the conflict.`);
-                        // Revert to original column
-                        const originalColumn = document.getElementById(originalCategory);
-                        originalColumn.appendChild(evt.item);
+                    const task = await getTask(taskId);
+                    if (!task) {
+                        console.error(`Task ${taskId} not found`);
+                        alert('Error: Task not found.');
+                        renderTasks();
                         return;
                     }
-                }
 
-                // Update task fields based on new category
-                task.category = newCategory;
-                if (newCategory === 'checkout') {
-                    task.checkOutTime = task.checkOutTime || '12:00';
-                    task.newReservationId = '';
-                } else if (newCategory === 'extensions') {
-                    task.newReservationId = task.newReservationId || `Resv#${Math.floor(1000 + Math.random() * 9000)}`;
-                    task.checkOutTime = '';
-                } else {
-                    task.checkOutTime = '';
-                    task.newReservationId = '';
-                    task.assignedTo = '';
-                }
+                    // Validate room number conflict for checkout or extensions
+                    if (newCategory === 'checkout' || newCategory === 'extensions') {
+                        const snapshot = await db.ref('tasks').once('value');
+                        const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+                        const conflictingTask = tasks.find(t => 
+                            t.roomNumber === task.roomNumber && 
+                            (t.category === 'checkout' || t.category === 'extensions') &&
+                            t.id !== taskId
+                        );
+                        if (conflictingTask) {
+                            console.log(`Conflict: Room ${task.roomNumber} already in ${conflictingTask.category}`);
+                            alert(`Room ${task.roomNumber} is already in ${conflictingTask.category}. Please resolve the conflict.`);
+                            // Revert to original column
+                            const originalColumn = document.getElementById(originalCategory);
+                            originalColumn.appendChild(evt.item);
+                            return;
+                        }
+                    }
 
-                try {
-                    await updateTask(task);
-                    await logHistory(taskId, `Task moved to ${newCategory}`);
-                    // Update task order in the new column
-                    const tasksInColumn = Array.from(evt.to.children).map(child => child.dataset.id);
-                    await updateTaskOrder(newCategory, tasksInColumn);
-                    console.log(`Task ${taskId} successfully moved to ${newCategory}`);
-                } catch (error) {
-                    console.error("Error moving task:", error);
-                    alert('Error moving task. Reverting changes.');
-                    // Revert to original column on error
-                    const originalColumn = document.getElementById(originalCategory);
-                    originalColumn.appendChild(evt.item);
-                    renderTasks();
+                    // Update task fields based on new category
+                    task.category = newCategory;
+                    if (newCategory === 'checkout') {
+                        task.checkOutTime = task.checkOutTime || '12:00';
+                        task.newReservationId = '';
+                    } else if (newCategory === 'extensions') {
+                        task.newReservationId = task.newReservationId || `Resv#${Math.floor(1000 + Math.random() * 9000)}`;
+                        task.checkOutTime = '';
+                    } else {
+                        task.checkOutTime = '';
+                        task.newReservationId = '';
+                        task.assignedTo = '';
+                    }
+
+                    try {
+                        await updateTask(task);
+                        await logHistory(taskId, `Task moved to ${newCategory}`);
+                        // Update task order in the new column
+                        const tasksInColumn = Array.from(evt.to.children).map(child => child.dataset.id);
+                        await updateTaskOrder(newCategory, tasksInColumn);
+                        console.log(`Task ${taskId} successfully moved to ${newCategory}`);
+                    } catch (error) {
+                        console.error("Error moving task:", error);
+                        alert('Error moving task. Reverting changes.');
+                        // Revert to original column on error
+                        const originalColumn = document.getElementById(originalCategory);
+                        originalColumn.appendChild(evt.item);
+                        renderTasks();
+                    }
                 }
-            }
-        });
+            });
+        }
     });
 
     // Export Tasks
@@ -214,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Import Tasks
-    importTasksBtn?.addEventListener('click', () => importFileInput.click());
+    importTasksBtn?.addEventListener('click', () => importFileInput?.click());
     importFileInput?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -279,14 +285,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let autocompleteTimeout;
     const autocompleteContainer = document.createElement('div');
     autocompleteContainer.classList.add('autocomplete-container');
-    taskAssignedTo.parentNode.insertBefore(autocompleteContainer, taskAssignedTo);
+    taskAssignedTo?.parentNode?.insertBefore(autocompleteContainer, taskAssignedTo);
     autocompleteContainer.appendChild(taskAssignedTo);
 
     const autocompleteList = document.createElement('div');
     autocompleteList.classList.add('autocomplete-list');
     autocompleteContainer.appendChild(autocompleteList);
 
-    taskAssignedTo.addEventListener('input', () => {
+    taskAssignedTo?.addEventListener('input', () => {
         clearTimeout(autocompleteTimeout);
         autocompleteTimeout = setTimeout(() => {
             const query = taskAssignedTo.value.trim().toLowerCase();
@@ -306,13 +312,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     });
 
-    taskAssignedTo.addEventListener('blur', () => {
+    taskAssignedTo?.addEventListener('blur', () => {
         setTimeout(() => {
             autocompleteList.innerHTML = '';
         }, 200);
     });
 
-    taskAssignedTo.addEventListener('keydown', (e) => {
+    taskAssignedTo?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.stopPropagation();
         }
@@ -322,14 +328,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let tagAutocompleteTimeout;
     const tagAutocompleteContainer = document.createElement('div');
     tagAutocompleteContainer.classList.add('autocomplete-container');
-    taskTags.parentNode.insertBefore(tagAutocompleteContainer, taskTags);
+    taskTags?.parentNode?.insertBefore(tagAutocompleteContainer, taskTags);
     tagAutocompleteContainer.appendChild(taskTags);
 
     const tagAutocompleteList = document.createElement('div');
     tagAutocompleteList.classList.add('autocomplete-list');
     tagAutocompleteContainer.appendChild(tagAutocompleteList);
 
-    taskTags.addEventListener('input', () => {
+    taskTags?.addEventListener('input', () => {
         clearTimeout(tagAutocompleteTimeout);
         tagAutocompleteTimeout = setTimeout(() => {
             const query = taskTags.value.trim().toLowerCase();
@@ -353,13 +359,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     });
 
-    taskTags.addEventListener('blur', () => {
+    taskTags?.addEventListener('blur', () => {
         setTimeout(() => {
             tagAutocompleteList.innerHTML = '';
         }, 200);
     });
 
-    taskTags.addEventListener('keydown', (e) => {
+    taskTags?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.stopPropagation();
         }
@@ -369,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('taskForm')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.target.closest('textarea')) {
             e.preventDefault();
-            document.getElementById('submitBtn').click();
+            submitBtn?.click();
         }
     });
 
@@ -392,35 +398,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cancel Modal
     cancelBtn?.addEventListener('click', () => {
-        taskModal.classList.add('hidden');
+        taskModal?.classList.add('hidden');
         resetForm();
     });
 
-    // ESC to Close Modals
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            taskModal.classList.add('hidden');
-            archiveModal.classList.add('hidden');
-            historyModal.classList.add('hidden');
-            reminderModal.classList.add('hidden');
-            resetForm();
-        }
+    // Help Modal
+    helpBtn?.addEventListener('click', () => {
+        helpModal?.classList.remove('hidden');
     });
 
-    // CTRL+S to Save Task
+    closeHelpBtn?.addEventListener('click', () => {
+        helpModal?.classList.add('hidden');
+    });
+
+    // Shortcut Keys
+    console.log('Keydown event listener attached');
     document.addEventListener('keydown', (e) => {
+        console.log('Keydown event:', e.key, e.ctrlKey);
+        if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Ctrl + Z pressed, opening task modal');
+            try {
+                openTaskModal('Add New Task', 'Add Task');
+            } catch (error) {
+                console.error('Error opening task modal:', error);
+                alert('Error opening task modal.');
+            }
+        }
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
-            if (!taskModal.classList.contains('hidden')) {
-                submitBtn.click();
+            if (!taskModal?.classList.contains('hidden')) {
+                submitBtn?.click();
             }
+        }
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            viewArchiveBtn?.click();
+        }
+        if (e.ctrlKey && e.key === 'h') {
+            e.preventDefault();
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark') ? 'enabled' : 'disabled');
+        }
+        if (e.ctrlKey && e.key === '/') {
+            e.preventDefault();
+            helpModal?.classList.toggle('hidden');
+        }
+        if (e.key === 'Escape') {
+            taskModal?.classList.add('hidden');
+            archiveModal?.classList.add('hidden');
+            historyModal?.classList.add('hidden');
+            reminderModal?.classList.add('hidden');
+            helpModal?.classList.add('hidden');
+            resetForm();
         }
     });
 
     // Form Submission
     document.getElementById('taskForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        submitBtn.click();
+        submitBtn?.click();
     });
 
     // Clear All Tasks
@@ -449,38 +487,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sort Tasks
     sortTasks?.addEventListener('change', () => {
-        renderTasks(searchInput.value.toLowerCase());
+        renderTasks(searchInput?.value.toLowerCase() || '');
     });
 
     // Filter by Priority
     filterPriority?.addEventListener('change', () => {
-        renderTasks(searchInput.value.toLowerCase());
+        renderTasks(searchInput?.value.toLowerCase() || '');
     });
 
     // Filter by Tag
     tagFilter?.addEventListener('input', () => {
-        const query = searchInput.value.toLowerCase();
+        const query = searchInput?.value.toLowerCase() || '';
         renderTasks(query);
     });
 
     // View Archive
     viewArchiveBtn?.addEventListener('click', () => {
-        archiveModal.classList.remove('hidden');
+        archiveModal?.classList.remove('hidden');
         renderArchive();
     });
 
     closeArchiveBtn?.addEventListener('click', () => {
-        archiveModal.classList.add('hidden');
+        archiveModal?.classList.add('hidden');
     });
 
     // Close History Modal
     closeHistoryBtn?.addEventListener('click', () => {
-        historyModal.classList.add('hidden');
+        historyModal?.classList.add('hidden');
     });
 
     // Reminder Modal Buttons
     skipReminderBtn?.addEventListener('click', () => {
-        reminderModal.classList.add('hidden');
+        reminderModal?.classList.add('hidden');
     });
 
     confirmReminderBtn?.addEventListener('click', async () => {
@@ -498,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         details: suggestion.details || '',
                         dueDate: new Date().toISOString().split('T')[0],
                         dueTime: '',
-                        priority: 'medium',
+                        priority: 'Medium',
                         assignedTo: suggestion.assignedTo || '',
                         status: 'Pending',
                         tags: [],
@@ -513,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await logRoomUsage(task.roomNumber, task.category, task.assignedTo);
                 }
             }
-            reminderModal.classList.add('hidden');
+            reminderModal?.classList.add('hidden');
             renderTasks();
         } catch (error) {
             console.error("Error adding suggested tasks:", error);
@@ -524,18 +562,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dynamically Show/Hide Fields Based on Category
     taskCategory?.addEventListener('change', () => {
         const category = taskCategory.value;
-        checkOutTimeField.classList.add('hidden');
-        newReservationIdField.classList.add('hidden');
-        assignedToField.classList.remove('hidden');
+        checkOutTimeField?.classList.add('hidden');
+        newReservationIdField?.classList.add('hidden');
+        assignedToField?.classList.remove('hidden');
         if (category === 'checkout') {
-            checkOutTimeField.classList.remove('hidden');
-            if (!document.getElementById('taskCheckOutTime').value) {
+            checkOutTimeField?.classList.remove('hidden');
+            if (!document.getElementById('taskCheckOutTime')?.value) {
                 document.getElementById('taskCheckOutTime').value = '12:00';
             }
         } else if (category === 'extensions') {
-            newReservationIdField.classList.remove('hidden');
+            newReservationIdField?.classList.remove('hidden');
         } else if (category === 'handover' || category === 'guestrequests') {
-            assignedToField.classList.add('hidden');
+            assignedToField?.classList.add('hidden');
             document.getElementById('taskAssignedTo').value = '';
         }
     });
@@ -543,21 +581,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Submit Task Form
     submitBtn?.addEventListener('click', async (e) => {
         e.preventDefault();
-        const roomNumber = document.getElementById('taskRoomNumber').value.trim();
-        if (!roomNumber && (taskCategory.value === 'checkout' || taskCategory.value === 'extensions')) {
+        const roomNumber = document.getElementById('taskRoomNumber')?.value.trim();
+        if (!roomNumber && (taskCategory?.value === 'checkout' || taskCategory?.value === 'extensions')) {
             alert('Room Number is required for Checkout and Extensions!');
             return;
         }
-        const newReservationId = document.getElementById('taskNewReservationId').value;
-        const category = document.getElementById('taskCategory').value;
-        const checkOutTime = document.getElementById('taskCheckOutTime').value;
-        const details = document.getElementById('taskDetails').value;
-        const dueDate = document.getElementById('taskDueDate').value;
-        const dueTime = document.getElementById('taskDueTime').value;
-        const priority = document.getElementById('taskPriority').value;
-        const assignedTo = (category === 'handover' || category === 'guestrequests') ? '' : document.getElementById('taskAssignedTo').value.trim();
-        const status = document.getElementById('taskStatus').value;
-        let taskTagsInput = document.getElementById('taskTags').value.split(',').map(tag => tag.trim()).filter(tag => tag);
+        const newReservationId = document.getElementById('taskNewReservationId')?.value;
+        const category = document.getElementById('taskCategory')?.value;
+        const checkOutTime = document.getElementById('taskCheckOutTime')?.value;
+        const details = document.getElementById('taskDetails')?.value;
+        const dueDate = document.getElementById('taskDueDate')?.value;
+        const dueTime = document.getElementById('taskDueTime')?.value;
+        const priority = document.getElementById('taskPriority')?.value;
+        const assignedTo = (category === 'handover' || category === 'guestrequests') ? '' : document.getElementById('taskAssignedTo')?.value.trim();
+        let taskTagsInput = document.getElementById('taskTags')?.value.split(',').map(tag => tag.trim()).filter(tag => tag);
 
         // Validate room number for checkout and extensions
         if (category === 'checkout' || category === 'extensions') {
@@ -599,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dueTime,
             priority,
             assignedTo,
-            status,
+            status: document.getElementById('taskStatus')?.value || 'Pending',
             tags: taskTagsInput,
             createdAt: new Date().toISOString(),
             comments: editingTaskId ? (await getTask(editingTaskId))?.comments || [] : [],
@@ -644,8 +681,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await logHistory(task.id, `Task created`);
                 await logRoomUsage(roomNumber, category, assignedTo);
             }
-            taskModal.classList.add('hidden');
+            taskModal?.classList.add('hidden');
             resetForm();
+            showToast('Task added successfully!');
         } catch (error) {
             console.error("Error submitting task:", error);
             alert('Error submitting task.');
@@ -695,17 +733,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Render Reminder Modal
     function renderReminderModal() {
-        reminderList.innerHTML = '';
-        suggestedTasks.forEach(suggestion => {
-            const suggestionItem = document.createElement('div');
-            suggestionItem.classList.add('flex', 'items-center', 'gap-2', 'p-2', 'border', 'border-gray-200', 'dark:border-gray-600', 'rounded-lg');
-            suggestionItem.innerHTML = `
-                <input type="checkbox" data-id="${suggestion.id}" class="task-checkbox" checked>
-                <span>R#${suggestion.roomNumber} - ${suggestion.category}${suggestion.assignedTo ? ` (Assigned to ${suggestion.assignedTo})` : ''}</span>
-            `;
-            reminderList.appendChild(suggestionItem);
-        });
-        reminderModal.classList.remove('hidden');
+        if (reminderList) {
+            reminderList.innerHTML = '';
+            suggestedTasks.forEach(suggestion => {
+                const suggestionItem = document.createElement('div');
+                suggestionItem.classList.add('flex', 'items-center', 'gap-2', 'p-2', 'border', 'border-gray-200', 'dark:border-gray-600', 'rounded-lg');
+                suggestionItem.innerHTML = `
+                    <input type="checkbox" data-id="${suggestion.id}" class="task-checkbox" checked>
+                    <span>R#${suggestion.roomNumber} - ${suggestion.category}${suggestion.assignedTo ? ` (Assigned to ${suggestion.assignedTo})` : ''}</span>
+                `;
+                reminderList.appendChild(suggestionItem);
+            });
+            reminderModal?.classList.remove('hidden');
+        }
     }
 
     // Log Room Usage
@@ -730,6 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const snapshot = await db.ref('tasks').once('value');
             let tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+            console.log('Fetched tasks:', tasks);
 
             // Apply filters
             if (searchQuery) {
@@ -741,11 +782,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
 
-            if (filterPriority.value !== 'all') {
+            if (filterPriority?.value !== 'all') {
                 tasks = tasks.filter(task => task.priority === filterPriority.value);
             }
 
-            if (tagFilter.value) {
+            if (tagFilter?.value) {
                 const tags = tagFilter.value.split(',').map(tag => tag.trim().toLowerCase());
                 tasks = tasks.filter(task =>
                     task.tags && task.tags.some(tag => tags.includes(tag.toLowerCase()))
@@ -769,9 +810,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Sort tasks within each category
             const priorityOrder = { High: 1, Medium: 2, Low: 3 };
             Object.keys(tasksByCategory).forEach(category => {
-                if (sortTasks.value === 'priority') {
+                if (sortTasks?.value === 'priority') {
                     tasksByCategory[category].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-                } else if (sortTasks.value === 'dueDate') {
+                } else if (sortTasks?.value === 'dueDate') {
                     tasksByCategory[category].sort((a, b) => {
                         const dateA = new Date(`${a.dueDate} ${a.dueTime || '23:59'}`).getTime();
                         const dateB = new Date(`${b.dueDate} ${b.dueTime || '23:59'}`).getTime();
@@ -785,8 +826,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Clear existing tasks
             const columns = ['checkout', 'extensions', 'handover', 'guestrequests'];
             columns.forEach(category => {
-                document.getElementById(category).innerHTML = '';
-                document.getElementById(`${category}Counter`).textContent = 'Tasks: 0';
+                const column = document.getElementById(category);
+                if (column) column.innerHTML = '';
+                const counter = document.getElementById(`${category}Counter`);
+                if (counter) counter.textContent = 'Tasks: 0';
             });
 
             // Render tasks
@@ -800,7 +843,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         taskCounts[category]++;
                     }
                 });
-                document.getElementById(`${category}Counter`).textContent = `Tasks: ${taskCounts[category]}`;
+                const counter = document.getElementById(`${category}Counter`);
+                if (counter) counter.textContent = `Tasks: ${taskCounts[category]}`;
             });
         } catch (error) {
             console.error("Error rendering tasks:", error);
@@ -809,6 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createTaskElement(task) {
+        console.log('Creating task element for task:', task.id);
         const taskElement = document.createElement('div');
         taskElement.classList.add('task-card', `priority-${task.priority.toLowerCase()}`);
         taskElement.setAttribute('data-id', task.id);
@@ -824,9 +869,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let checkOutTimeDisplay = '';
         if (task.checkOutTime) {
             const [hours, minutes] = task.checkOutTime.split(':');
-            const period = hours >= 12 ? 'PM' : 'AM';
-            const displayHours = hours % 12 || 12;
-            checkOutTimeDisplay = `${displayHours}:${minutes} ${period}`;
+            const period = parseInt(hours) >= 12 ? 'PM' : 'AM';
+            const displayHours = parseInt(hours) % 12 || 12;
+            checkOutTimeDisplay = `${displayHours}:${minutes.padStart(2, '0')} ${period}`;
         }
 
         // Initialize comments and attachments if undefined
@@ -916,6 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+        console.log('Task action bar added to task:', task.id);
 
         // Drag and Drop Events
         taskElement.addEventListener('dragstart', (e) => {
@@ -962,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Action Button Events
-        taskElement.querySelector('.comment-btn').addEventListener('click', () => {
+        taskElement.querySelector('.comment-btn')?.addEventListener('click', () => {
             const commentsContainer = taskElement.querySelector(`#comments-${task.id}`);
             commentsContainer.classList.toggle('active');
             if (commentsContainer.classList.contains('active')) {
@@ -977,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 commentsContainer.appendChild(commentInput);
 
-                commentInput.querySelector('.save-comment-btn').addEventListener('click', async () => {
+                commentInput.querySelector('.save-comment-btn')?.addEventListener('click', async () => {
                     const text = commentInput.querySelector('textarea').value.trim();
                     if (text) {
                         const comment = {
@@ -993,13 +1039,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                commentInput.querySelector('.cancel-comment-btn').addEventListener('click', () => {
+                commentInput.querySelector('.cancel-comment-btn')?.addEventListener('click', () => {
                     commentInput.remove();
                 });
             }
         });
 
-        taskElement.querySelector('.attach-btn').addEventListener('click', () => {
+        taskElement.querySelector('.attach-btn')?.addEventListener('click', () => {
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.accept = '.pdf,.jpg,.png';
@@ -1021,7 +1067,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.click();
         });
 
-        taskElement.querySelector('.history-btn').addEventListener('click', async () => {
+        taskElement.querySelector('.history-btn')?.addEventListener('click', async () => {
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = '';
             try {
@@ -1046,30 +1092,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     historyList.appendChild(li);
                 });
-                historyModal.classList.remove('hidden');
+                historyModal?.classList.remove('hidden');
             } catch (error) {
                 console.error("Error loading history:", error);
                 alert('Error loading history.');
             }
         });
 
-        taskElement.querySelector('.edit-btn').addEventListener('click', () => {
+        taskElement.querySelector('.edit-btn')?.addEventListener('click', () => {
             openTaskModal('Edit Task', 'Update Task', null, task);
         });
 
-        taskElement.querySelector('.duplicate-btn').addEventListener('click', async () => {
+        taskElement.querySelector('.duplicate-btn')?.addEventListener('click', async () => {
             const newTask = { ...task, id: Date.now(), createdAt: new Date().toISOString(), comments: [], history: [], attachments: [] };
             await saveTask(newTask);
             await logHistory(newTask.id, `Task duplicated from task ${task.id}`);
             renderTasks();
         });
 
-        taskElement.querySelector('.archive-btn').addEventListener('click', async () => {
+        taskElement.querySelector('.archive-btn')?.addEventListener('click', async () => {
             await archiveTask(task.id);
             renderTasks();
         });
 
-        taskElement.querySelector('.delete-btn').addEventListener('click', async () => {
+        taskElement.querySelector('.delete-btn')?.addEventListener('click', async () => {
             if (confirm('Are you sure you want to delete this task?')) {
                 taskElement.classList.add('swiped');
                 setTimeout(async () => {
@@ -1095,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                commentItem.querySelector('.save-edit-comment-btn').addEventListener('click', async () => {
+                commentItem.querySelector('.save-edit-comment-btn')?.addEventListener('click', async () => {
                     const newText = commentItem.querySelector('textarea').value.trim();
                     if (newText) {
                         comment.text = newText;
@@ -1106,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                commentItem.querySelector('.cancel-edit-comment-btn').addEventListener('click', () => {
+                commentItem.querySelector('.cancel-edit-comment-btn')?.addEventListener('click', () => {
                     renderTasks();
                 });
             });
@@ -1127,17 +1173,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openTaskModal(title, btnText, presetCategory = null, taskData = null) {
         try {
-            modalTitle.textContent = title;
-            submitBtn.textContent = btnText;
+            if (modalTitle) modalTitle.textContent = title;
+            if (submitBtn) submitBtn.textContent = btnText;
             editingTaskId = taskData ? taskData.id : null;
 
             if (!taskData) {
                 resetForm();
-                document.getElementById('taskDueDate').value = new Date().toISOString().split('T')[0];
+                const taskDueDate = document.getElementById('taskDueDate');
+                if (taskDueDate) taskDueDate.value = new Date().toISOString().split('T')[0];
             }
 
-            if (presetCategory) {
-                document.getElementById('taskCategory').value = presetCategory;
+            if (presetCategory && taskCategory) {
+                taskCategory.value = presetCategory;
                 taskCategory.dispatchEvent(new Event('change'));
             }
 
@@ -1153,10 +1200,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('taskAssignedTo').value = taskData.assignedTo || '';
                 document.getElementById('taskStatus').value = taskData.status || 'Pending';
                 document.getElementById('taskTags').value = taskData.tags ? taskData.tags.join(', ') : '';
-                taskCategory.dispatchEvent(new Event('change'));
+                taskCategory?.dispatchEvent(new Event('change'));
             }
 
-            taskModal.classList.remove('hidden');
+            taskModal?.classList.remove('hidden');
         } catch (error) {
             console.error("Error opening task modal:", error);
             alert('Error opening modal.');
@@ -1173,10 +1220,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     input.selectedIndex = 0;
                 }
             });
-            document.getElementById('taskStatus').value = 'Pending';
-            checkOutTimeField.classList.add('hidden');
-            newReservationIdField.classList.add('hidden');
-            assignedToField.classList.remove('hidden');
+            const taskStatus = document.getElementById('taskStatus');
+            if (taskStatus) taskStatus.value = 'Pending';
+            checkOutTimeField?.classList.add('hidden');
+            newReservationIdField?.classList.add('hidden');
+            assignedToField?.classList.remove('hidden');
             autocompleteList.innerHTML = '';
             tagAutocompleteList.innerHTML = '';
             editingTaskId = null;
@@ -1269,7 +1317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const snapshot = await db.ref('archive').once('value');
             const archiveList = document.getElementById('archiveList');
-            archiveList.innerHTML = '';
+            if (archiveList) archiveList.innerHTML = '';
             const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
             tasks.forEach(task => {
                 const taskCard = document.createElement('div');
@@ -1277,12 +1325,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 taskCard.innerHTML = `
                     <div class="archive-task-content">
                         <div class="archive-task-title">
-                            R#${task.roomNumber || 'N/A'} - ${task.category}
+                            <i class="fas fa-door-open mr-2 text-teal-500"></i>R#${task.roomNumber || 'N/A'} - ${task.category}
                         </div>
                         <div class="archive-task-meta">
                             <span><i class="fas fa-user mr-1 text-teal-500"></i>${task.assignedTo || 'Unassigned'}</span>
                             <span><i class="fas fa-exclamation-circle mr-1 text-teal-500"></i>${task.priority}</span>
-                            <span><i class="fas fa-info-circle mr-1 text-teal-500"></i>${task.status}</span>
+                            <span class="status-badge status-${task.status.toLowerCase().replace(' ', '-')}" >
+                                <i class="fas fa-info-circle mr-1 text-teal-500"></i>${task.status}
+                            </span>
                         </div>
                         <div class="archive-task-details">
                             <p>${task.details || 'No details'}</p>
@@ -1292,25 +1342,41 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="archive-task-actions">
-                        <button class="unarchive-btn" data-id="${task.id}" data-tooltip="Unarchive">
+                        <button class="action-btn unarchive-btn" data-id="${task.id}" data-tooltip="Unarchive Task">
                             <i class="fas fa-undo text-base"></i>
                         </button>
-                        <button class="delete-btn" data-id="${task.id}" data-tooltip="Delete">
+                        <button class="action-btn delete-btn" data-id="${task.id}" data-tooltip="Delete Task">
                             <i class="fas fa-trash text-base"></i>
                         </button>
                     </div>
                 `;
-                archiveList.appendChild(taskCard);
+                archiveList?.appendChild(taskCard);
             });
 
-            archiveList.querySelectorAll('.unarchive-btn').forEach(btn => {
+            archiveList?.querySelectorAll('.unarchive-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const taskId = btn.dataset.id;
                     try {
                         const task = (await db.ref(`archive/${taskId}`).once('value')).val();
-                        await db.ref(`tasks/${taskId}`).set({ ...task, archivedAt: null });
+                        // Validate room number for checkout/extensions
+                        if (task.category === 'checkout' || task.category === 'extensions') {
+                            const snapshot = await db.ref('tasks').once('value');
+                            const tasks = snapshot.val() ? Object.values(snapshot.val()) : [];
+                            const conflictingTask = tasks.find(t => 
+                                t.roomNumber === task.roomNumber && 
+                                (t.category === 'checkout' || t.category === 'extensions')
+                            );
+                            if (conflictingTask) {
+                                alert(`Cannot unarchive: Room ${task.roomNumber} is already in ${conflictingTask.category}.`);
+                                return;
+                            }
+                        }
+                        delete task.archivedAt;
+                        await db.ref(`tasks/${taskId}`).set(task);
                         await db.ref(`archive/${taskId}`).remove();
                         await logHistory(taskId, 'Task unarchived');
+                        renderArchive();
+                        renderTasks();
                     } catch (error) {
                         console.error("Error unarchiving task:", error);
                         alert('Error unarchiving task.');
@@ -1318,7 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            archiveList.querySelectorAll('.delete-btn').forEach(btn => {
+            archiveList?.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const taskId = btn.dataset.id;
                     if (confirm('Are you sure you want to delete this archived task?')) {
@@ -1340,6 +1406,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Error rendering archive:", error);
             alert('Error rendering archive.');
+        }
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        if (toast) {
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
         }
     }
 });

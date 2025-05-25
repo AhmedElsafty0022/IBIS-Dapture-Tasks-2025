@@ -6,10 +6,13 @@
     --accent: #7c3aed;
     --accent-hover: #6d2ed6;
     --danger: #dc2626;
-    --danger-hover: #c42121;
+    --danger-hover: #b91c1c;
     --warning: #f59e0b;
+    --warning-hover: #d97706;
     --success: #22c55e;
+    --success-hover: #16a34a;
     --info: #3b82f6;
+    --info-hover: #2563eb;
     --bg-light: #f8fafc;
     --bg-dark: #1e293b;
     --text-light: #0f172a;
@@ -192,7 +195,7 @@ body {
     background: var(--success);
 }
 .task-checkout-time[data-time="14:00"]:hover {
-    background: var(--success);
+    background: var(--success-hover);
 }
 .task-checkout-time[data-time="16:00"] {
     background: var(--warning);
@@ -204,7 +207,7 @@ body {
     background: var(--info);
 }
 .task-checkout-time[data-time="18:00"]:hover {
-    background: var(--info);
+    background: var(--info-hover);
 }
 .task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]) {
     background: var(--primary);
@@ -214,19 +217,19 @@ body {
 }
 
 .dark .task-checkout-time[data-time="13:00"] {
-    background: var(--danger-hover);
+    background: var(--danger);
 }
 .dark .task-checkout-time[data-time="14:00"] {
     background: var(--success);
 }
 .dark .task-checkout-time[data-time="16:00"] {
-    background: var(--warning-hover);
+    background: var(--warning);
 }
 .dark .task-checkout-time[data-time="18:00"] {
     background: var(--info);
 }
 .dark .task-checkout-time:not([data-time="13:00"]):not([data-time="14:00"]):not([data-time="16:00"]):not([data-time="18:00"]) {
-    background: var(--primary-hover);
+    background: var(--primary);
 }
 
 .task-details {
@@ -276,7 +279,6 @@ body {
     align-items: center;
     justify-content: center;
     transition: var(--transition);
-    color: var(--secondary);
 }
 
 .icon-sm {
@@ -383,22 +385,25 @@ body {
     border-radius: 6px;
     transition: var(--transition);
     position: relative;
-    color: var(--secondary);
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-light);
+    opacity: 1 !important; /* Ensure buttons are always visible */
+}
+
+.dark .action-btn {
+    color: var(--text-dark);
 }
 
 .action-btn:hover {
     background: rgba(0, 0, 0, 0.1);
-    color: var(--text-light);
     transform: translateY(-1px);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .dark .action-btn:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--text-dark);
 }
 
 /* Specific Action Button Colors */
@@ -409,6 +414,28 @@ body {
 .duplicate-btn { color: var(--accent); }
 .archive-btn { color: var(--accent); }
 .delete-btn { color: var(--danger); }
+.unarchive-btn { color: var(--success); }
+
+/* Archive Task Actions */
+.archive-task-actions .action-btn {
+    padding: 6px;
+    border-radius: 6px;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1 !important;
+}
+
+.archive-task-actions .action-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .archive-task-actions .action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
 
 /* Tooltips */
 [data-tooltip] {
@@ -566,7 +593,8 @@ body {
 
 .archive-task-actions {
     display: flex;
-    gap: 6px;
+    gap: 8px;
+    align-items: center;
 }
 
 /* Modal Enhancements */
